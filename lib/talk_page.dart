@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'utils/database_helper.dart';
 import 'widgets/message.dart';
 import 'utils/app_config.dart';
-import 'utils/helper.dart';
 
 
 class TalkPage extends StatefulWidget {
@@ -59,7 +58,7 @@ class _TalkPageState extends State<TalkPage> {
           return Message(
             message: row['text'],
             senderName: row['name'],
-            time: datetimeConverter(row['date']),
+            time: row['date'],
             avatarAssetPath: "assets/images/icon.png",
             mediaPath: row['filename'].isNotEmpty 
                 ? "${AppConfig.appDocumentsDirectory}/${row['name']}/media/${row['filename']}" 

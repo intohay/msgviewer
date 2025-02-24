@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-
+import 'package:just_audio/just_audio.dart';
 
 class InlineAudio extends StatefulWidget {
   final String audioPath;
@@ -13,136 +12,148 @@ class InlineAudio extends StatefulWidget {
 }
 
 class _InlineAudioState extends State<InlineAudio> {
-  OverlayEntry? overlayEntry;
-
-  void _showOverlay(BuildContext context, Widget audioPlayer) {
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: Material(
-          color: Colors.black,
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: audioPlayer
-              ),
-              Positioned(
-                top: 40,
-                left: 10,
-                child: IconButton(
-                  icon: Icon(Icons.close, size: 30, color: Colors.white),
-                  onPressed: () => overlayEntry?.remove(),
-                )
-              )
-            ]
-          )
-        )
-      )
-    );
-    Overlay.of(context).insert(overlayEntry!);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-        onTap: () {
-          _showOverlay(context, AudioPlayerPage(audioPath: widget.audioPath));
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 10.0),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxHeight: 200,
-            ),
-            child: Container(
-              color: Colors.black,
-              child: Center(
-                child: Icon(
-                  Icons.play_arrow,
-                  color: Colors.white,
-                  size: 50,
-                ),
-              ),
-            ),
-          ),
-        ),
-    );
-  }
-}
-
-
-class AudioPlayerPage extends StatefulWidget {
-  final String audioPath;
-
-  const AudioPlayerPage({Key? key, required this.audioPath}) : super(key: key);
-  @override
-  _AudioPlayerPageState createState() => _AudioPlayerPageState();
-}
-
-class _AudioPlayerPageState extends State<AudioPlayerPage> {
-  late VideoPlayerController _controller;
+  late AudioPlayer _audioPlayer;
+  bool _isPlaying = false;
+  bool _isSeeking = false; // ✅ スライダー操作中かどうか
+  double _volume = 1.0;
+  double _sliderValue = 0; // ✅ 一時的にスライダーの値を保持
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(File(widget.audioPath));
-    _controller.initialize().then((_) {
-      setState(() {});
+    _audioPlayer = AudioPlayer();
+    _audioPlayer.setFilePath(widget.audioPath);
+
+    _audioPlayer.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) {
+        _resetAudioPlayer();
+      }
     });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _togglePlayback() {
+    if (_isPlaying) {
+      _audioPlayer.pause();
+    } else {
+      _audioPlayer.play();
+    }
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+  }
+
+  void _resetAudioPlayer() async {
+    await _audioPlayer.pause();
+    await _audioPlayer.seek(Duration.zero);
+    setState(() {
+      _isPlaying = false;
+    });
+  }
+
+  void _setVolume(double volume) {
+    _audioPlayer.setVolume(volume);
+    setState(() {
+      _volume = volume;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          VideoProgressIndicator(
-            _controller,
-            allowScrubbing: true,
-            colors: VideoProgressColors(
-              playedColor: Colors.purple,
-              bufferedColor: Colors.grey,
-              backgroundColor: Colors.white,
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              IconButton(
-                onPressed: () {
-                  _controller
-                      .seekTo(Duration.zero)
-                      .then((_) => _controller.play());
+          StreamBuilder<Duration?>(
+            stream: _audioPlayer.durationStream,
+            builder: (context, snapshot) {
+              final duration = snapshot.data ?? Duration.zero;
+              return StreamBuilder<Duration>(
+                stream: _audioPlayer.positionStream,
+                builder: (context, positionSnapshot) {
+                  final position = positionSnapshot.data ?? Duration.zero;
+                  
+                  // ✅ スライダー操作中は再生位置を更新しない
+                  if (!_isSeeking) {
+                    _sliderValue = position.inMilliseconds.toDouble();
+                  }
+                  return Column(
+                    children: [
+                      // ✅ スライダー（進行状況バー）
+                      Slider(
+                        value: _sliderValue.clamp(0, duration.inMilliseconds.toDouble()), // ✅ Update slider value
+                        max: duration.inMilliseconds.toDouble(),
+                        onChangeStart: (_) {
+                          _isSeeking = true;
+                        },
+                        onChanged: (value) {
+                          setState(() {
+                            _sliderValue = value;
+                          });
+                        },
+                        onChangeEnd: (value) {
+                          _audioPlayer.seek(Duration(milliseconds: value.toInt()));
+                          setState(() {
+                            _isSeeking = false;
+                          });
+                        },
+                        activeColor: Colors.blue,
+                        inactiveColor: Colors.grey.shade300,
+                      ),
+                      // ✅ コントロール部分（アイコン・再生ボタン・時間）
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // 🔊 ボリュームアイコン
+                          IconButton(
+                            icon: Icon(
+                              _volume > 0 ? Icons.volume_up : Icons.volume_off,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () {
+                              _setVolume(_volume > 0 ? 0 : 1);
+                            },
+                          ),
+                          // ▶️ 再生/停止ボタン
+                          IconButton(
+                            icon: Icon(
+                              _isPlaying ? Icons.pause : Icons.play_arrow,
+                              size: 40,
+                              color: Colors.blue,
+                            ),
+                            onPressed: _togglePlayback,
+                          ),
+                          // ⏱ 時間表示
+                          Text(
+                            "${_formatDuration(position)} / ${_formatDuration(duration)}",
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
                 },
-                icon: Icon(Icons.refresh),
-                color: Colors.grey,
-              ),
-              IconButton(
-                onPressed: () {
-                  _controller.play();
-                },
-                icon: Icon(Icons.play_arrow),
-                color: Colors.grey,
-              ),
-              IconButton(
-                onPressed: () {
-                  _controller.pause();
-                },
-                icon: Icon(Icons.pause),
-                color: Colors.grey,
-              ),
-            ],
+              );
+            },
           ),
         ],
+      ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes);
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$minutes:$seconds";
   }
 }

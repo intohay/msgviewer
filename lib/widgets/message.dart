@@ -50,19 +50,19 @@ class Message extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(left: 2.0),
-                child: Text(
-                  "${senderName}　${time}",
+              Text(
+                  "${senderName}　${_datetimeConverter(time)}",
                   style: TextStyle(
                     fontWeight: FontWeight.normal,
                     fontSize: 11,
                   ),
                 ),
-              ),
               Container(
                 margin: const EdgeInsets.only(top: 5.0, right: 15.0),
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 15.0,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(3.0),
@@ -88,5 +88,18 @@ class Message extends StatelessWidget {
         ),
       ],
     );
+  }
+
+
+  String _datetimeConverter(String datetime) {
+    if (datetime.length >= 14) {
+      return datetime.substring(0, 4) + "/" + 
+            datetime.substring(5, 7) + "/" + 
+            datetime.substring(7, 9) + " " + 
+            datetime.substring(10, 12) + ":" + 
+            datetime.substring(12, 14);
+    } else {
+      throw FormatException("Invalid datetime format");
+    }
   }
 }
