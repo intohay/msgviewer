@@ -98,12 +98,15 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
     print('Extracting to: $extractPath');
     Directory(extractPath).createSync(recursive: true);
 
+
     String? csvFilePath;
 
+    // ZIPファイルの中のCSVファイルを抽出
     for (final file in archive) {
       
-      final filePath = join(directory.path, file.name);
-      if (file.isFile && file.name.endsWith('.csv') && !file.name.contains('__MACOSX')) {
+      final filePath = join(extractPath, file.name.replaceFirst(rootFolderName + '/', ''));
+
+      if (file.isFile && !file.name.contains('__MACOSX')) {
         final data = file.content as List<int>;
         File(filePath)..createSync(recursive: true)..writeAsBytesSync(data);
 
@@ -126,6 +129,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
       await dbHelper.insertData(fields);
     }
 
+    
     if (context.mounted) {
       Navigator.of(context).pop();
     }
