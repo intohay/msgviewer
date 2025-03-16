@@ -99,10 +99,8 @@ class Message extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     if (mediaPath != null &&
-                        thumbPath != null &&
-                        mediaPath!.isNotEmpty &&
-                        thumbPath!.isNotEmpty)
-                      ifMedia(mediaPath!, thumbPath!),
+                        mediaPath!.isNotEmpty)
+                      ifMedia(mediaPath!, thumbPath ?? ''),
                     if (message != null && message!.isNotEmpty)
                       _buildMessageText(message!),
                   ],
