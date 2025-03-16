@@ -67,6 +67,7 @@ class _TalkPageState extends State<TalkPage> {
       'messages': messages,
       'scrollOffset': _scrollController.offset,
       'offset': offset,
+      'iconPath': iconPath,
     };
     Navigator.pop(context, stateToSave);
   }
