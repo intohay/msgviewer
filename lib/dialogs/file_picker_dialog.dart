@@ -23,12 +23,12 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
       appBar: AppBar(
         title: Text('Add Talk Data'),
         leading: IconButton(
-          icon: Icon(Icons.cancel_outlined),
+          icon: Icon(Icons.cancel),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.check),
+            icon: Icon(Icons.download),
             onPressed: () => _processZip(context),
           ),
         ],
@@ -56,7 +56,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
 
     if (result != null) {
       setState(() {
-        zipFilePath = result.files.single.path;
+        zipFilePath = result.files.single.name;
       });
     } else {
       if (context.mounted) {

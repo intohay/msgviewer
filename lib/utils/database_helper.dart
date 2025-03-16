@@ -16,7 +16,7 @@ class DatabaseHelper {
 
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 1, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 2, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -27,6 +27,23 @@ class DatabaseHelper {
           is_favorite BOOLEAN
         )
       ''');
+      await db.execute('''
+        CREATE TABLE Talks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE,
+          icon_path TEXT
+        )
+      ''');
+    }, onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 2) {
+        await db.execute('''
+          CREATE TABLE Talks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            icon_path TEXT
+          )
+        ''');
+      }
     });
   }
 
@@ -52,13 +69,51 @@ class DatabaseHelper {
   }
 
 
-  Future<List<Map<String, dynamic>>> getMessages(int offset, int limit) async {
+  Future<List<Map<String, dynamic>>> getMessages(String? name, int offset, int limit) async {
     final db = await database;
     return await db.query(
       'Messages',
+      where: name != null ? 'name = ?' : null,
+      whereArgs: name != null ? [name] : null,
       limit: limit,
       offset: offset,
       orderBy: 'id DESC'  // 最新のデータから取得する場合
     );
+  }
+
+
+
+  Future<List<Map<String, dynamic>>> getAllMessages() async {
+    final db = await database;
+    return await db.query(
+      'Messages',
+      orderBy: 'id DESC'
+    );
+  }
+
+
+  Future<void> setIconPath(String name, String iconPath) async {
+    final db = await database;
+    await db.insert(
+      'Talks',
+      {'name': name, 'icon_path': iconPath},
+      conflictAlgorithm: ConflictAlgorithm.replace, // 同じ `name` の場合は上書き
+    );
+  }
+
+  // アイコンのパスを取得
+  Future<String?> getIconPath(String name) async {
+    final db = await database;
+    final result = await db.query(
+      'Talks',
+      where: 'name = ?',
+      whereArgs: [name],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return result.first['icon_path'] as String?;
+    }
+    return null;
   }
 }
