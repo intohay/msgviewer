@@ -3,8 +3,11 @@ import 'package:flutter/scheduler.dart';
 import 'utils/database_helper.dart';
 import 'widgets/message.dart';
 import 'utils/app_config.dart';
-import 'settings/icon_change_page.dart';
-import 'settings/call_me_page.dart';
+import 'menu/icon_change_page.dart';
+import 'menu/call_me_page.dart';
+import 'menu/favorites_page.dart';
+import 'utils/helper.dart';
+
 
 
 class TalkPage extends StatefulWidget {
@@ -33,7 +36,8 @@ class _TalkPageState extends State<TalkPage> {
     _loadIcon();
     _loadCallMeName();
     if (widget.savedState?["messages"]?.isNotEmpty ?? false) {
-      messages = widget.savedState!['messages'] ?? [];
+      final savedList = widget.savedState!["messages"] as List;
+      messages = savedList.map((row) => Map<String, dynamic>.from(row)).toList();
       offset = widget.savedState!['offset'] ?? messages.length;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (widget.savedState!['scrollOffset'] != null) {
@@ -86,8 +90,16 @@ class _TalkPageState extends State<TalkPage> {
     
 
 
-    final List<Map<String, dynamic>> newMessages = await dbHelper.getMessages(widget.name, offset, 10);
+    final List<Map<String, dynamic>> newMessagesRaw = await dbHelper.getMessages(widget.name, offset, 10);
+
+    final List<Map<String, dynamic>> newMessages = newMessagesRaw
+      .map((row) => Map<String, dynamic>.from(row))
+      .toList();
+
+
     print("newMessages length: ${newMessages.length}");
+
+    
 
     if (newMessages.isNotEmpty) {
       setState(() {
@@ -165,17 +177,21 @@ class _TalkPageState extends State<TalkPage> {
           ),
         ),
       );
+    } else if (action == "Favorites") {
+      // ★ お気に入りのみを表示
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FavoritesPage(name: widget.name!, iconPath: iconPath!, callMeName: callMeName!),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));
     }
     
   }
 
-  String _replacePlaceHolders(String text) {
-    String modifiedText = text.replaceAll("%%%", callMeName ?? "あなた").replaceAll("％％％", callMeName ?? "あなた");
-
-    return modifiedText;
-  }
+  
 
   Widget _buildMenuItem(IconData icon, String text,  VoidCallback onTap) {
     return ListTile(
@@ -212,14 +228,32 @@ class _TalkPageState extends State<TalkPage> {
         separatorBuilder: (context, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           var row = messages[index];
+          bool isFavorite = (row['is_favorite'] == 1);
+
+
           print(row);
-          return Message(
-            message: _replacePlaceHolders(row['text']).trim(),
-            senderName: row['name'],
-            time: DateTime.parse(row['date']),  // Fixed DateTimerow to DateTime.parse(row['date']),
-            avatarAssetPath: iconPath ?? "assets/images/icon.png",
-            mediaPath: row['filepath'],
-            thumbPath: row['thumb_filepath'],
+            return GestureDetector(
+              onLongPress: () async {
+                // 長押しでお気に入りトグル
+                bool newStatus = !isFavorite;
+                // データベースを更新
+                await dbHelper.updateFavoriteStatus(row['id'] as int, newStatus);
+
+                // ローカルリストも更新
+                setState(() {
+                  messages[index]['is_favorite'] = newStatus ? 1 : 0;
+                });
+              },
+              child: Message(
+                message: replacePlaceHolders(row['text'], callMeName!).trim(),
+                senderName: row['name'],
+                time: DateTime.parse(row['date']),
+                avatarAssetPath: iconPath ?? "assets/images/icon.png",
+                mediaPath: row['filepath'],
+                thumbPath: row['thumb_filepath'],
+                // ★ お気に入り状態をMessageに渡す
+                isFavorite: isFavorite,
+            ),
           );
         },
       ),

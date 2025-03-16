@@ -146,5 +146,37 @@ class DatabaseHelper {
     }
     return null;
   }
+
+  Future<void> updateFavoriteStatus(int messageId, bool isFavorite) async {
+    final db = await database;
+    await db.update(
+      'Messages',
+      {'is_favorite': isFavorite ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [messageId],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getFavoriteMessages(String name, int offset, int limit) async {
+    final db = await database;
+    return await db.query(
+      'Messages',
+      where: 'name = ? AND is_favorite = 1',
+      whereArgs: [name],
+      orderBy: 'id DESC',
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  // Future<List<Map<String, dynamic>>> getFavoriteMessages(String name) async {
+  //   final db = await database;
+  //   return await db.query(
+  //     'Messages',
+  //     where: 'name = ? AND is_favorite = 1',
+  //     whereArgs: [name],
+  //     orderBy: 'id DESC',
+  //   );
+  // }
   
 }

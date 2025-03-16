@@ -57,3 +57,8 @@ Future<String> generateVideoThumbnail(String videoFilePath, String outputThumbna
   return thumbPath;
 }
 
+String replacePlaceHolders(String text, String callMeName) {
+    String modifiedText = text.replaceAll("%%%", callMeName).replaceAll("％％％", callMeName);
+
+    return modifiedText;
+  }

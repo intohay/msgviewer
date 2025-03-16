@@ -12,6 +12,7 @@ class Message extends StatelessWidget {
   final String avatarAssetPath;
   final String? mediaPath;
   final String? thumbPath;
+  final bool isFavorite; // ★ ここでお気に入りフラグを受け取る
 
   const Message({
     Key? key,
@@ -21,13 +22,15 @@ class Message extends StatelessWidget {
     required this.avatarAssetPath,
     this.mediaPath,
     this.thumbPath,
+    this.isFavorite = false,
   }) : super(key: key);
 
+  /// メディアの種類を判定して対応ウィジェットを返す
   Widget ifMedia(String mediaPath, String thumbPath) {
-    
     if (mediaPath.endsWith('.jpg') || mediaPath.endsWith('.png')) {
       return InlineImage(imagePath: mediaPath, thumbnailPath: thumbPath);
-    } else if (mediaPath.endsWith('.m4a') || (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
+    } else if (mediaPath.endsWith('.m4a') ||
+        (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
       return InlineAudio(audioPath: mediaPath);
     } else if (mediaPath.endsWith('.mp4')) {
       return InlineVideo(videoPath: mediaPath, thumbnailPath: thumbPath);
@@ -41,6 +44,7 @@ class Message extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // アバター
         Padding(
           padding: const EdgeInsets.all(10.0),
           child: CircleAvatar(
@@ -49,18 +53,38 @@ class Message extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
+        // メッセージ本文
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const SizedBox(height: 8),
-              Text(
-                "${senderName}　${_datetimeConverter(time)}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.normal,
-                  fontSize: 11,
-                ),
+              
+              // ★ 「名前＋時刻＋星」を同じ行に配置
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "$senderName　${_datetimeConverter(time)}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.normal,
+                      fontSize: 11,
+                    ),
+                  ),
+                  // お気に入りなら星アイコンを表示
+                  if (isFavorite)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 22.0),
+                        child: Icon(
+                          Icons.star,
+                          color: Colors.orangeAccent,
+                          size: 16,
+                      ),
+                    ), 
+                ],
               ),
+
+              // メッセージボックス
               Container(
                 margin: const EdgeInsets.only(top: 5.0, right: 15.0),
                 padding: const EdgeInsets.symmetric(
@@ -74,7 +98,11 @@ class Message extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    if (mediaPath != null && thumbPath != null && mediaPath!.isNotEmpty && thumbPath!.isNotEmpty) ifMedia(mediaPath!, thumbPath!),
+                    if (mediaPath != null &&
+                        thumbPath != null &&
+                        mediaPath!.isNotEmpty &&
+                        thumbPath!.isNotEmpty)
+                      ifMedia(mediaPath!, thumbPath!),
                     if (message != null && message!.isNotEmpty)
                       _buildMessageText(message!),
                   ],
@@ -87,7 +115,7 @@ class Message extends StatelessWidget {
     );
   }
 
-  /// **URLを検出し、通常のテキストと分割**
+  /// URLを検出してリンク化する
   Widget _buildMessageText(String text) {
     final RegExp linkRegex = RegExp(
       r'((https?:\/\/)?([\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?))',
@@ -99,12 +127,12 @@ class Message extends StatelessWidget {
     int lastMatchEnd = 0;
 
     for (final match in matches) {
-      // 通常のテキスト部分を追加
+      // 通常テキスト部分
       if (match.start > lastMatchEnd) {
         spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
       }
 
-      // URL部分をリンク化
+      // URL部分
       final String url = text.substring(match.start, match.end);
       final String formattedUrl = url.startsWith('http') ? url : 'https://$url';
 
@@ -125,7 +153,7 @@ class Message extends StatelessWidget {
       lastMatchEnd = match.end;
     }
 
-    // 残りの通常テキスト部分を追加
+    // 残りの通常テキスト
     if (lastMatchEnd < text.length) {
       spans.add(TextSpan(text: text.substring(lastMatchEnd)));
     }
@@ -145,5 +173,4 @@ class Message extends StatelessWidget {
         "${datetime.hour.toString().padLeft(2, '0')}:"
         "${datetime.minute.toString().padLeft(2, '0')}";
   }
-
 }
