@@ -3,17 +3,25 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:path_provider/path_provider.dart';
 
-// tap to show video
+// 動画のインライン再生サムネイル
 class InlineVideo extends StatefulWidget {
   final String videoPath;
   final String thumbnailPath;
+
+  /// 正方形表示にするかどうか（デフォルト false）
+  /// true の場合、中央でクロップして正方形表示
+  final bool isSquare;
+
+  /// 再生アイコンを表示するかどうか（デフォルト true）
+  final bool showPlayIcon;
 
   const InlineVideo({
     Key? key,
     required this.videoPath,
     required this.thumbnailPath,
+    this.isSquare = false,
+    this.showPlayIcon = true,
   }) : super(key: key);
 
   @override
@@ -32,12 +40,11 @@ class _InlineVideoState extends State<InlineVideo> {
     _initializeDisplay();
   }
 
+  /// サムネイル画像のアスペクト比を取得
   Future<void> _initializeDisplay() async {
-    // サムネイル画像からアスペクト比を取得
     final thumbFile = File(widget.thumbnailPath);
     if (await thumbFile.exists()) {
       final bytes = await thumbFile.readAsBytes();
-      // decodeImageFromList は非同期でコールバックを呼び出す
       ui.decodeImageFromList(bytes, (ui.Image image) {
         setState(() {
           _aspectRatio = image.width / image.height;
@@ -46,7 +53,7 @@ class _InlineVideoState extends State<InlineVideo> {
         });
       });
     } else {
-      // 万が一サムネイルが存在しない場合はそのパスをそのまま利用
+      // サムネイルがない場合
       setState(() {
         _thumbnailPath = widget.thumbnailPath;
         _isLoading = false;
@@ -54,13 +61,10 @@ class _InlineVideoState extends State<InlineVideo> {
     }
   }
 
+  /// フルスクリーンの動画再生をオーバーレイで表示
   void _showOverlay(BuildContext context, Widget videoPlayer) {
     overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+      builder: (context) => Positioned.fill(
         child: Material(
           color: Colors.black,
           child: Stack(
@@ -73,7 +77,7 @@ class _InlineVideoState extends State<InlineVideo> {
                   icon: const Icon(Icons.close, size: 30, color: Colors.white),
                   onPressed: () => overlayEntry?.remove(),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -84,42 +88,73 @@ class _InlineVideoState extends State<InlineVideo> {
 
   @override
   Widget build(BuildContext context) {
+    // 再生アイコン
+    Widget playIcon = const Center(
+      child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
+    );
+    if (!widget.showPlayIcon) {
+      playIcon = const SizedBox.shrink();
+    }
+
+    // サムネイル
+    Widget thumbnailWidget;
+    if (_isLoading) {
+      thumbnailWidget = const Center(child: CircularProgressIndicator());
+    } else if (_thumbnailPath != null && _thumbnailPath!.isNotEmpty) {
+      // 正方形の場合は中央クロップ (BoxFit.cover)
+      // そうでない場合は従来通り (BoxFit.contain)
+      final boxFit = widget.isSquare ? BoxFit.cover : BoxFit.contain;
+      thumbnailWidget = Image.file(File(_thumbnailPath!), fit: boxFit);
+    } else {
+      // サムネイルが無い場合は黒背景
+      thumbnailWidget = Container(color: Colors.black);
+    }
+
+    // 正方形表示 or 従来の高さ250px表示
+    Widget displayedWidget;
+    if (widget.isSquare) {
+      // ★ 正方形 + BoxFit.cover
+      displayedWidget = AspectRatio(
+        aspectRatio: 1.0,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            thumbnailWidget,
+            playIcon,
+          ],
+        ),
+      );
+    } else {
+      // ★ 従来の表示
+      displayedWidget = LayoutBuilder(builder: (context, constraints) {
+        const double fixedHeight = 250.0;
+        final double calculatedWidth = fixedHeight * _aspectRatio;
+        final double maxWidth = constraints.maxWidth;
+
+        return Center(
+          child: Container(
+            height: fixedHeight,
+            width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                thumbnailWidget,
+                playIcon,
+              ],
+            ),
+          ),
+        );
+      });
+    }
+
     return GestureDetector(
       onTap: () {
+        // フルスクリーン再生をオーバーレイ表示
         _showOverlay(context, VideoPlayerPage(videoPath: widget.videoPath));
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0),
-        child: LayoutBuilder(builder: (context, constraints) {
-          double fixedHeight = 250.0;
-          double calculatedWidth = fixedHeight * _aspectRatio;
-          double maxWidth = constraints.maxWidth;
-          return Center(
-            child: Container(
-              height: fixedHeight,
-              width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (!_isLoading && _thumbnailPath != null)
-                    Image.file(
-                      File(_thumbnailPath!),
-                      fit: BoxFit.contain,
-                      width: calculatedWidth,
-                      height: fixedHeight,
-                    )
-                  else if (_isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else
-                    Container(color: Colors.black),
-                  const Center(
-                    child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
+        child: displayedWidget,
       ),
     );
   }
@@ -134,6 +169,7 @@ class VideoPlayerPage extends StatefulWidget {
   _VideoPlayerPageState createState() => _VideoPlayerPageState();
 }
 
+/// フルスクリーン動画再生ページ
 class _VideoPlayerPageState extends State<VideoPlayerPage> {
   late VideoPlayerController _controller;
   bool _showOverlay = false;
@@ -202,6 +238,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                   color: Colors.black.withOpacity(0.3),
                   child: Stack(
                     children: [
+                      // 中央の再生・巻戻し・早送り
                       Align(
                         alignment: Alignment.center,
                         child: Row(
@@ -239,6 +276,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           ],
                         ),
                       ),
+                      // 下部シークバー
                       Positioned(
                         bottom: 80,
                         left: 16,

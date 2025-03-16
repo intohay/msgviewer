@@ -7,7 +7,7 @@ import 'menu/icon_change_page.dart';
 import 'menu/call_me_page.dart';
 import 'menu/favorites_page.dart';
 import 'utils/helper.dart';
-
+import 'menu/media_page.dart';
 
 
 class TalkPage extends StatefulWidget {
@@ -185,6 +185,17 @@ class _TalkPageState extends State<TalkPage> {
           builder: (context) => FavoritesPage(name: widget.name!, iconPath: iconPath!, callMeName: callMeName!),
         ),
       );
+    } else if (action == "Media"){
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MediaPage(
+              name: widget.name!,
+              iconPath: iconPath!,
+              callMeName: callMeName!,
+            ),
+          ),
+        );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));
     }

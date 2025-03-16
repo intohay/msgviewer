@@ -169,14 +169,54 @@ class DatabaseHelper {
     );
   }
 
-  // Future<List<Map<String, dynamic>>> getFavoriteMessages(String name) async {
-  //   final db = await database;
-  //   return await db.query(
-  //     'Messages',
-  //     where: 'name = ? AND is_favorite = 1',
-  //     whereArgs: [name],
-  //     orderBy: 'id DESC',
-  //   );
-  // }
-  
+
+    // database_helper.dart (抜粋)
+  Future<List<Map<String, dynamic>>> getImageMessages(String name) async {
+    final db = await database;
+    return await db.query(
+      'Messages',
+      where: '''
+        name = ? 
+        AND (
+          filepath LIKE '%.jpg' 
+          OR filepath LIKE '%.png'
+        )
+      ''',
+      whereArgs: [name],
+      orderBy: 'date ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getVideoMessages(String name) async {
+    final db = await database;
+    return await db.query(
+      'Messages',
+      where: '''
+        name = ? 
+        AND (
+          (filepath LIKE '%.mp4' AND filepath NOT LIKE '%\\_3\\_%.mp4' ESCAPE '\\')
+        OR filepath LIKE '%\\_2\\_%.mp4' ESCAPE '\\'
+        )
+      ''',
+      whereArgs: [name],
+      orderBy: 'date ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAudioMessages(String name) async {
+    final db = await database;
+    return await db.query(
+      'Messages',
+      where: '''
+        name = ? 
+        AND (
+          filepath LIKE '%.m4a'
+          OR filepath LIKE '%\\_3\\_%.mp4' ESCAPE '\\'
+        )
+      ''',
+      whereArgs: [name],
+      orderBy: 'date ASC',
+    );
+  }
+
 }
