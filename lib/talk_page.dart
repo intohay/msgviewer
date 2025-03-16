@@ -4,11 +4,13 @@ import 'utils/database_helper.dart';
 import 'widgets/message.dart';
 import 'utils/app_config.dart';
 import 'settings/icon_change_page.dart';
+import 'settings/call_me_page.dart';
 
 
 class TalkPage extends StatefulWidget {
   final Map<String, dynamic>? savedState;
   final String? name;
+  
 
   const TalkPage({Key? key, required this.name, this.savedState}) : super(key: key);
 
@@ -23,11 +25,13 @@ class _TalkPageState extends State<TalkPage> {
   int offset = 0;
   bool isLoading = false;
   String? iconPath;
+  String? callMeName;
 
   @override
   void initState() {
     super.initState();
     _loadIcon();
+    _loadCallMeName();
     if (widget.savedState?["messages"]?.isNotEmpty ?? false) {
       messages = widget.savedState!['messages'] ?? [];
       offset = widget.savedState!['offset'] ?? messages.length;
@@ -42,6 +46,9 @@ class _TalkPageState extends State<TalkPage> {
     
     _scrollController.addListener(_scrollListener);
   }
+
+  
+
 
   @override
   void dispose() {
@@ -62,6 +69,13 @@ class _TalkPageState extends State<TalkPage> {
       'offset': offset,
     };
     Navigator.pop(context, stateToSave);
+  }
+
+  Future<void> _loadCallMeName() async {
+    final name = await dbHelper.getCallMeName(widget.name ?? '');
+    setState(() {
+      callMeName = name ?? "あなた";
+    });
   }
 
   Future<void> _loadMoreMessages() async {
@@ -135,10 +149,31 @@ class _TalkPageState extends State<TalkPage> {
           ),
         ),
       );
+    } else if (action == "Call me") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CallMePage(
+            name: widget.name!,
+            currentCallMe: callMeName,
+            onCallMeChanged: (newName) {
+              setState(() {
+                callMeName = newName;
+              });
+            },
+          ),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));
     }
     
+  }
+
+  String _replacePlaceHolders(String text) {
+    String modifiedText = text.replaceAll("%%%", callMeName ?? "あなた").replaceAll("％％％", callMeName ?? "あなた");
+
+    return modifiedText;
   }
 
   Widget _buildMenuItem(IconData icon, String text,  VoidCallback onTap) {
@@ -177,9 +212,9 @@ class _TalkPageState extends State<TalkPage> {
         itemBuilder: (context, index) {
           var row = messages[index];
           return Message(
-            message: row['text'],
+            message: _replacePlaceHolders(row['text']).trim(),
             senderName: row['name'],
-            time: row['date'],
+            time: DateTime.parse(row['date']),  // Fixed DateTimerow to DateTime.parse(row['date']),
             avatarAssetPath: iconPath ?? "assets/images/icon.png",
             mediaPath: row['filename'].isNotEmpty 
                 ? "${AppConfig.appDocumentsDirectory}/${row['name']}/media/${row['filename']}" 

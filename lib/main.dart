@@ -13,7 +13,7 @@ Future<void> deleteDatabaseFile() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppConfig.initialize();
-  // await deleteDatabaseFile();
+  await deleteDatabaseFile();
   runApp(const MyApp());
 }
 

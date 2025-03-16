@@ -8,7 +8,7 @@ import 'package:flutter/gestures.dart';
 class Message extends StatelessWidget {
   final String? message;
   final String senderName;
-  final String time;
+  final DateTime time;
   final String avatarAssetPath;
   final String? mediaPath;
 
@@ -24,10 +24,10 @@ class Message extends StatelessWidget {
   Widget ifMedia(String mediaPath) {
     if (mediaPath.endsWith('.jpg') || mediaPath.endsWith('.png')) {
       return InlineImage(imagePath: mediaPath);
+    } else if (mediaPath.endsWith('.m4a') || (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
+      return InlineAudio(audioPath: mediaPath);
     } else if (mediaPath.endsWith('.mp4')) {
       return InlineVideo(videoPath: mediaPath);
-    } else if (mediaPath.endsWith('.m4a')) {
-      return InlineAudio(audioPath: mediaPath);
     } else {
       return const Text("Unsupported media type");
     }
@@ -135,15 +135,12 @@ class Message extends StatelessWidget {
     );
   }
 
-  String _datetimeConverter(String datetime) {
-    if (datetime.length >= 14) {
-      return datetime.substring(0, 4) + "/" +
-          datetime.substring(5, 7) + "/" +
-          datetime.substring(7, 9) + " " +
-          datetime.substring(10, 12) + ":" +
-          datetime.substring(12, 14);
-    } else {
-      throw FormatException("Invalid datetime format");
-    }
+  String _datetimeConverter(DateTime datetime) {
+    return "${datetime.year.toString().padLeft(4, '0')}/"
+        "${datetime.month.toString().padLeft(2, '0')}/"
+        "${datetime.day.toString().padLeft(2, '0')} "
+        "${datetime.hour.toString().padLeft(2, '0')}:"
+        "${datetime.minute.toString().padLeft(2, '0')}";
   }
+
 }
