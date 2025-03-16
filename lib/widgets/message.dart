@@ -11,6 +11,7 @@ class Message extends StatelessWidget {
   final DateTime time;
   final String avatarAssetPath;
   final String? mediaPath;
+  final String? thumbPath;
 
   const Message({
     Key? key,
@@ -19,15 +20,17 @@ class Message extends StatelessWidget {
     required this.time,
     required this.avatarAssetPath,
     this.mediaPath,
+    this.thumbPath,
   }) : super(key: key);
 
-  Widget ifMedia(String mediaPath) {
+  Widget ifMedia(String mediaPath, String thumbPath) {
+    
     if (mediaPath.endsWith('.jpg') || mediaPath.endsWith('.png')) {
-      return InlineImage(imagePath: mediaPath);
+      return InlineImage(imagePath: mediaPath, thumbnailPath: thumbPath);
     } else if (mediaPath.endsWith('.m4a') || (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
       return InlineAudio(audioPath: mediaPath);
     } else if (mediaPath.endsWith('.mp4')) {
-      return InlineVideo(videoPath: mediaPath);
+      return InlineVideo(videoPath: mediaPath, thumbnailPath: thumbPath);
     } else {
       return const Text("Unsupported media type");
     }
@@ -71,7 +74,7 @@ class Message extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    if (mediaPath != null) ifMedia(mediaPath!),
+                    if (mediaPath != null && thumbPath != null && mediaPath!.isNotEmpty && thumbPath!.isNotEmpty) ifMedia(mediaPath!, thumbPath!),
                     if (message != null && message!.isNotEmpty)
                       _buildMessageText(message!),
                   ],

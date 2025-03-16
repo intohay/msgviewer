@@ -5,8 +5,9 @@ import 'package:photo_view/photo_view.dart';
 
 class InlineImage extends StatefulWidget {
   final String imagePath;
+  final String thumbnailPath;
 
-  const InlineImage({Key? key, required this.imagePath}) : super(key: key);
+  const InlineImage({Key? key, required this.imagePath, required this.thumbnailPath}) : super(key: key);
 
   @override
   State<InlineImage> createState() => _InlineImageState();
@@ -62,7 +63,7 @@ class _InlineImageState extends State<InlineImage> {
                 maxHeight: 300,
               ),
               child: Image.file(
-                File(widget.imagePath)
+                File(widget.thumbnailPath),
               ),
             ),
           ),

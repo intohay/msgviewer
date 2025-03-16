@@ -24,7 +24,8 @@ class DatabaseHelper {
           name TEXT,
           date DATETIME,
           text TEXT,
-          filename TEXT,
+          filepath TEXT,
+          thumb_filepath TEXT,
           is_favorite BOOLEAN
         )
       ''');
@@ -62,13 +63,15 @@ class DatabaseHelper {
           'name': row[1],
           'date': formatDateTimeForDatabase(row[2]),
           'text': row[3],
-          'filename': row[4],
-          'is_favorite': row[5] == 'TRUE' ? 1 : 0  // SQLiteではBOOLEANを整数で扱う
+          'filepath': row[4],
+          'thumb_filepath': row[5], // Added thumb_path in the insertData
+          'is_favorite': row[6] == 'TRUE' ? 1 : 0  // Adjusted index for is_favorite
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
 
+    print('Data inserted successfully');
   }
 
 

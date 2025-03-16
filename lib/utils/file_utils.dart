@@ -8,7 +8,7 @@ import 'package:csv/csv.dart';
 import '../utils/database_helper.dart';
 import 'helper.dart';
 
-
+import 'package:path/path.dart' as p;
 
 class FileManager {
   final DatabaseHelper dbHelper;
@@ -75,19 +75,40 @@ class FileManager {
   Future<String?> _processWithCsv(Archive archive, String extractPath, String rootFolderName) async {
     String? extractedName;
     
+    // ZIP内の各ファイルを解凍し、サムネイルを生成
     for (final file in archive) {
       final relativePath = file.name.replaceFirst('$rootFolderName/', '');
       final filePath = join(extractPath, relativePath);
 
       if (file.isFile && !file.name.contains('__MACOSX')) {
         final data = file.content as List<int>;
-        File(filePath)..createSync(recursive: true)..writeAsBytesSync(data);
+        File(filePath)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(data);
+
+        if (file.name.endsWith('.jpg')) {
+          final thumbFilePath = filePath.replaceFirst('.jpg', '_thumb.jpg');
+          try {
+            await generateThumbnail(filePath, thumbFilePath);
+          } catch (e) {
+            throw Exception("Failed to generate thumbnail for $filePath: $e");
+          }
+        } else if (file.name.endsWith('.mp4') || file.name.contains("_2_")) {
+          final thumbFilePath = filePath.replaceFirst('.mp4', '_thumb.jpg');
+          try {
+            await generateVideoThumbnail(filePath, thumbFilePath);
+          } catch (e) {
+            throw Exception("Failed to generate video thumbnail for $filePath: $e");
+          }
+        }
       }
     }
 
+    // mediaフォルダを作成（ここではCSV用に、後でパスを作るために利用）
     final mediaPath = join(extractPath, 'media');
     Directory(mediaPath).createSync(recursive: true);
 
+    // CSVを読み込み、パース
     final input = File(join(extractPath, "$rootFolderName.csv")).openRead();
     final fields = await input
         .transform(utf8.decoder)
@@ -95,6 +116,33 @@ class FileManager {
         .toList();
 
     fields.removeAt(0); // ヘッダーを削除
+
+    // CSVの各行の4列目にあるファイル名を、mediaフォルダ内のフルパスに変換し、
+    // さらに5列目にサムネイルのフルパスを挿入する
+    for (var row in fields) {
+      if (row.length > 4 && row[4] is String && (row[4] as String).isNotEmpty) {
+        final filename = row[4] as String;
+        // メディアファイルのフルパス
+        final fullFilePath = join(mediaPath, filename);
+        // CSVの対象列を更新
+        row[4] = fullFilePath;
+        
+        String thumb = "";
+        if (filename.endsWith('.jpg')) {
+          thumb = filename.replaceFirst('.jpg', '_thumb.jpg');
+        } else if (filename.endsWith('.mp4')) {
+          thumb = filename.replaceFirst('.mp4', '_thumb.jpg');
+        }
+        // サムネイルのフルパス
+        final fullThumbPath = join(mediaPath, thumb);
+        // 既存の5番目の要素の前にサムネイルパスを挿入（他の列は右にずれる）
+        row.insert(5, fullThumbPath);
+      } else {
+        // ファイル名がなければ、サムネイルは空文字として挿入
+        row.insert(5, "");
+      }
+    }
+
     await dbHelper.insertData(fields);
 
     if (fields.isNotEmpty) {
@@ -142,22 +190,52 @@ class FileManager {
 
         groupedEntries.putIfAbsent(id, () => {
           "id": id,
-          "name": rootFolderName,
+          "name": rootFolderName, // メンバーの名前
           "date": date,
           "text": null,
-          "filename": null,
+          "filepath": null,
+          "thumb_filepath": null,
           "is_favorite": false,
         });
 
-        if (type == 0 && textExtensions.contains(".$extension")) {
+        if (((type == 0 || type == 1) && textExtensions.contains(".$extension"))) {
           groupedEntries[id]!["text"] = File(filePath).readAsStringSync();
-        } else if ((type == 1 && imageExtensions.contains(".$extension")) ||
-                  (type == 2 && videoExtensions.contains(".$extension")) ||
-                  (type == 3 && audioExtensions.contains(".$extension"))) {
+
+        } else if (type == 1 && imageExtensions.contains(".$extension")) {
+          final mediaFilePath = join(mediaPath, p.basename(filePath));
+          File(filePath).copySync(mediaFilePath);
+          
+          groupedEntries[id]!["filepath"] = mediaFilePath;
+
+          final thumbFileName = p.basenameWithoutExtension(filePath) + "_thumb.$extension";
+          final thumbFilePath = join(mediaPath, thumbFileName);
+          try {
+            await generateThumbnail(mediaFilePath, thumbFilePath);
+            groupedEntries[id]!["thumb_filepath"] = thumbFilePath;
+          } catch (e) {
+            throw Exception("Failed to generate thumbnail for $mediaFilePath: $e");
+          }
+        
+
+        } else if(type == 2 && videoExtensions.contains(".$extension")){
+          final mediaFilePath = p.join(mediaPath, p.basename(filePath));
+          File(filePath).copySync(mediaFilePath);
+          groupedEntries[id]!["filepath"] = mediaFilePath;
+
+          final thumbFileName = p.basenameWithoutExtension(filePath) + "_thumb.jpg";
+          final thumbFilePath = p.join(mediaPath, thumbFileName);
+          try {
+            await generateVideoThumbnail(mediaFilePath, thumbFilePath);
+            groupedEntries[id]!["thumb_filepath"] = thumbFilePath;
+          } catch (e) {
+            throw Exception("Failed to generate video thumbnail for $mediaFilePath: $e");
+          }
+
+        } else if (type == 3 && audioExtensions.contains(".$extension")) {
           
             final mediaFilePath = join(mediaPath, basename(filePath));
             File(filePath).copySync(mediaFilePath);
-            groupedEntries[id]!["filename"] = basename(filePath); 
+            groupedEntries[id]!["filepath"] = mediaFilePath; 
         }
       }
     }
@@ -168,7 +246,8 @@ class FileManager {
         entry["name"],
         entry["date"],
         entry["text"] ?? "",
-        entry["filename"] ?? "",
+        entry["filepath"],
+        entry["thumb_filepath"],
         false,
       ]);
     }

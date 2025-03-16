@@ -1,15 +1,20 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
+
 // tap to show video
 class InlineVideo extends StatefulWidget {
   final String videoPath;
+  final String thumbnailPath;
 
-
-  const InlineVideo({Key? key, required this.videoPath}) : super(key: key);
+  const InlineVideo({
+    Key? key,
+    required this.videoPath,
+    required this.thumbnailPath,
+  }) : super(key: key);
 
   @override
   State<InlineVideo> createState() => _InlineVideoState();
@@ -24,36 +29,29 @@ class _InlineVideoState extends State<InlineVideo> {
   @override
   void initState() {
     super.initState();
-    _initializeThumbnail();
+    _initializeDisplay();
   }
 
-
-
-  Future<void> _initializeThumbnail() async {
-    final directory = await getTemporaryDirectory();
-
-    final controller = VideoPlayerController.file(File(widget.videoPath));
-    await controller.initialize();
-    final aspectRatio = controller.value.aspectRatio;
-    controller.dispose();
-
-
-    final thumbnailPath = await VideoThumbnail.thumbnailFile(
-      video: widget.videoPath,
-      thumbnailPath: "${directory.path}/thumb_${widget.videoPath.hashCode}.jpg",
-      imageFormat: ImageFormat.JPEG,
-      maxHeight: 400,
-      quality: 75,
-    );
-
-    if (!mounted) return;
-
-
-    setState(() {
-      _thumbnailPath = thumbnailPath;
-      _aspectRatio = aspectRatio;
-      _isLoading = false;
-    });
+  Future<void> _initializeDisplay() async {
+    // サムネイル画像からアスペクト比を取得
+    final thumbFile = File(widget.thumbnailPath);
+    if (await thumbFile.exists()) {
+      final bytes = await thumbFile.readAsBytes();
+      // decodeImageFromList は非同期でコールバックを呼び出す
+      ui.decodeImageFromList(bytes, (ui.Image image) {
+        setState(() {
+          _aspectRatio = image.width / image.height;
+          _thumbnailPath = widget.thumbnailPath;
+          _isLoading = false;
+        });
+      });
+    } else {
+      // 万が一サムネイルが存在しない場合はそのパスをそのまま利用
+      setState(() {
+        _thumbnailPath = widget.thumbnailPath;
+        _isLoading = false;
+      });
+    }
   }
 
   void _showOverlay(BuildContext context, Widget videoPlayer) {
@@ -67,21 +65,19 @@ class _InlineVideoState extends State<InlineVideo> {
           color: Colors.black,
           child: Stack(
             children: <Widget>[
-              Positioned.fill(
-                child:  videoPlayer
-              ),
+              Positioned.fill(child: videoPlayer),
               Positioned(
                 top: 40,
                 left: 10,
                 child: IconButton(
-                  icon: Icon(Icons.close, size: 30, color: Colors.white),
+                  icon: const Icon(Icons.close, size: 30, color: Colors.white),
                   onPressed: () => overlayEntry?.remove(),
-                )
+                ),
               )
-            ]
-          )
-        )
-      )
+            ],
+          ),
+        ),
+      ),
     );
     Overlay.of(context).insert(overlayEntry!);
   }
@@ -89,57 +85,45 @@ class _InlineVideoState extends State<InlineVideo> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {
-          _showOverlay(context, VideoPlayerPage(videoPath: widget.videoPath));
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 10.0),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0),
-            child: LayoutBuilder( // ← 追加: 画面幅に合わせて調整
-              builder: (context, constraints) {
-                double fixedHeight = 250.0; // ← 高さを固定
-                double calculatedWidth = fixedHeight * _aspectRatio; // ← 幅を比率で計算
-                double maxWidth = constraints.maxWidth; // 親の最大幅
-
-                return Center(
-                  child: Container(
-                    height: fixedHeight, // 高さを固定
-                    width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth, // 最大幅を超えないように調整
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        if (_thumbnailPath != null)
-                          Image.file(
-                            File(_thumbnailPath!), 
-                            fit: BoxFit.contain, // ← 画像をクロップせずに比率を保持
-                            width: calculatedWidth,
-                            height: fixedHeight,
-                          )
-                        else if (_isLoading)
-                          const Center(child: CircularProgressIndicator())
-                        else
-                          Container(color: Colors.black),
-
-                        const Center(
-                          child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
-                        ),
-                      ],
-                    ),
+      onTap: () {
+        _showOverlay(context, VideoPlayerPage(videoPath: widget.videoPath));
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10.0),
+        child: LayoutBuilder(builder: (context, constraints) {
+          double fixedHeight = 250.0;
+          double calculatedWidth = fixedHeight * _aspectRatio;
+          double maxWidth = constraints.maxWidth;
+          return Center(
+            child: Container(
+              height: fixedHeight,
+              width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (!_isLoading && _thumbnailPath != null)
+                    Image.file(
+                      File(_thumbnailPath!),
+                      fit: BoxFit.contain,
+                      width: calculatedWidth,
+                      height: fixedHeight,
+                    )
+                  else if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    Container(color: Colors.black),
+                  const Center(
+                    child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
-
-        ),
+          );
+        }),
+      ),
     );
   }
 }
-
-
-
-
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoPath;
@@ -158,32 +142,16 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
-    print(widget.videoPath);
-
     _controller = VideoPlayerController.file(File(widget.videoPath))
-    ..initialize().then((_) {
-      setState(() {});
-
-      // 初期化完了時に動画を再生
-      _controller.play();
-      _controller.setLooping(true);
-      // _controller.addListener(_checkVideoEnd);
-    });
+      ..initialize().then((_) {
+        setState(() {});
+        _controller.play();
+        _controller.setLooping(true);
+      });
   }
-
- 
-  // void _checkVideoEnd() {
-  //   if (_controller.value.position >= _controller.value.duration) {
-  //     _controller.pause();
-  //     _controller.seekTo(_controller.value.duration);
-  //   }
-  // }
-
-
 
   @override
   void dispose() {
-    // _controller.removeListener(_checkVideoEnd);
     _controller.dispose();
     _overlayTimer?.cancel();
     super.dispose();
@@ -211,16 +179,13 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     });
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        
-      ),
+      appBar: AppBar(backgroundColor: Colors.black),
       body: GestureDetector(
-        onTap: _toggleOverlay, // ✅ タップでオーバーレイを表示/非表示
+        onTap: _toggleOverlay,
         child: Stack(
           children: [
             Center(
@@ -231,15 +196,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                     )
                   : const Center(child: CircularProgressIndicator()),
             ),
-
-            // ✅ タップで表示/非表示のオーバーレイ
             if (_showOverlay)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withValues(alpha: 0.3), // ✅ 半透明のオーバーレイ
-                  child: Stack( // ← ✅ ここを Stack に変更
+                  color: Colors.black.withOpacity(0.3),
+                  child: Stack(
                     children: [
-                      // ✅ 再生・巻き戻し・進むボタン
                       Align(
                         alignment: Alignment.center,
                         child: Row(
@@ -263,7 +225,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                                 setState(() {
                                   _controller.value.isPlaying ? _controller.pause() : _controller.play();
                                 });
-                                _startOverlayTimer(); // ✅ ボタン操作後もオーバーレイを自動で消す
+                                _startOverlayTimer();
                               },
                             ),
                             IconButton(
@@ -277,10 +239,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                           ],
                         ),
                       ),
-
-                      // ✅ シークバーを少し上に移動
                       Positioned(
-                        bottom: 80, // ✅ 以前より上に配置
+                        bottom: 80,
                         left: 16,
                         right: 16,
                         child: Column(
@@ -298,7 +258,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  _formatDuration(_controller.value.position), // ✅ 再生中も時間を更新
+                                  _formatDuration(_controller.value.position),
                                   style: const TextStyle(color: Colors.white),
                                 ),
                                 Text(
@@ -319,7 +279,6 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
       ),
     );
   }
-
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");

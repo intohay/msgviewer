@@ -1,3 +1,7 @@
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as p;
+import 'package:video_thumbnail/video_thumbnail.dart';
+
 
 
 String formatDateTimeForDatabase(String inputDateTime) {
@@ -23,4 +27,33 @@ String formatDateTimeForDatabase(String inputDateTime) {
 
 
 
+
+// ヘルパー関数: サムネイル生成
+Future<void> generateThumbnail(String inputPath, String outputPath) async {
+  final result = await FlutterImageCompress.compressAndGetFile(
+    inputPath,
+    outputPath,
+    quality: 50, // 品質を調整（低いほど軽量）
+    minWidth: 300, // 幅300px以下に縮小
+    minHeight: 300, // 高さ300px以下に縮小
+  );
+  if (result == null) {
+    throw Exception("Failed to generate thumbnail for $inputPath");
+  }
+}
+
+// ヘルパー関数: 動画のサムネイル生成
+Future<String> generateVideoThumbnail(String videoFilePath, String outputThumbnailPath) async {
+  final String? thumbPath = await VideoThumbnail.thumbnailFile(
+    video: videoFilePath,
+    thumbnailPath: outputThumbnailPath,
+    imageFormat: ImageFormat.JPEG,
+    maxHeight: 400, // 必要に応じてサイズを調整
+    quality: 75,    // 品質（数値が低いほど軽量）
+  );
+  if (thumbPath == null) {
+    throw Exception("Failed to generate video thumbnail for $videoFilePath");
+  }
+  return thumbPath;
+}
 

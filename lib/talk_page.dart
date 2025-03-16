@@ -211,14 +211,14 @@ class _TalkPageState extends State<TalkPage> {
         separatorBuilder: (context, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
           var row = messages[index];
+          print(row);
           return Message(
             message: _replacePlaceHolders(row['text']).trim(),
             senderName: row['name'],
             time: DateTime.parse(row['date']),  // Fixed DateTimerow to DateTime.parse(row['date']),
             avatarAssetPath: iconPath ?? "assets/images/icon.png",
-            mediaPath: row['filename'].isNotEmpty 
-                ? "${AppConfig.appDocumentsDirectory}/${row['name']}/media/${row['filename']}" 
-                : null,
+            mediaPath: row['filepath'],
+            thumbPath: row['thumb_filepath'],
           );
         },
       ),
