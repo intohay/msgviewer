@@ -47,6 +47,7 @@ class _TalkPageState extends State<TalkPage> {
       // 1) savedState["messages"] はイミュータブルかもしれないので map(...).toList() でコピー
       final savedList = widget.savedState!["messages"] as List;
       messages = savedList.map((row) => Map<String, dynamic>.from(row)).toList();
+      oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
 
       iconPath = widget.savedState?["iconPath"] ?? "assets/images/icon.png";
     } else {
@@ -210,6 +211,7 @@ class _TalkPageState extends State<TalkPage> {
         children: [
           ScrollablePositionedList.separated(
             reverse: true,
+            initialScrollIndex: widget.savedState?["scrollIndex"] ?? 0,
             itemScrollController: _itemScrollController,
             itemPositionsListener: _itemPositionsListener,
             itemCount: messages.length,
@@ -254,12 +256,25 @@ class _TalkPageState extends State<TalkPage> {
   }
 
   void _handlePop() {
+    // 表示中の先頭に近いアイテムの index を取得
+    final positions = _itemPositionsListener.itemPositions.value;
+    int? scrollIndex;
+    if (positions.isNotEmpty) {
+      // 画面上に表示されているアイテムのうち、もっとも先頭にある index を選ぶ
+      scrollIndex = positions
+          .where((position) => position.itemLeadingEdge >= 0)
+          .map((position) => position.index)
+          .reduce((a, b) => a < b ? a : b);
+    }
+
     final stateToSave = {
       'messages': messages,
       'iconPath': iconPath,
+      'scrollIndex': scrollIndex ?? 0,
     };
     Navigator.pop(context, stateToSave);
   }
+
 
   void _openSettingsMenu() {
     showModalBottomSheet(
@@ -353,6 +368,17 @@ class _TalkPageState extends State<TalkPage> {
   }
 
   void _showDateSearchCalendar() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    // 現在画面に見えている投稿の中央値の日付を取得
+    DateTime initialCalendarDate = DateTime.now();
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      final visiblePositions = positions.toList();
+      visiblePositions.sort((a, b) => a.index.compareTo(b.index));
+      final medianIndex = visiblePositions[visiblePositions.length ~/ 2].index;
+      initialCalendarDate = DateTime.parse(messages[medianIndex]['date']);
+    }
+    
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
@@ -361,26 +387,29 @@ class _TalkPageState extends State<TalkPage> {
       ),
       builder: (BuildContext context) {
         final screenHeight = MediaQuery.of(context).size.height;
-        return SizedBox(
-          height: screenHeight * 0.7,
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+        return SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.55, // 高さを50%にして下部の余白を減少
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _CalendarBottomSheet(
-                  onDateSelected: (selectedDate) {
-                    // カレンダー閉じずに連続選択したいなら popしない
-                    _jumpToDate(selectedDate);
-                  },
+                Expanded(
+                  child: _CalendarBottomSheet(
+                    initialDate: initialCalendarDate,
+                    onDateSelected: (selectedDate) {
+                      // 日付選択時の処理（既存の処理）
+                      _jumpToDate(selectedDate);
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -398,8 +427,13 @@ class _TalkPageState extends State<TalkPage> {
 
 class _CalendarBottomSheet extends StatefulWidget {
   final Function(DateTime) onDateSelected;
+  final DateTime? initialDate; // 初期表示する日付を受け取る
 
-  const _CalendarBottomSheet({Key? key, required this.onDateSelected}) : super(key: key);
+  const _CalendarBottomSheet({
+    Key? key,
+    required this.onDateSelected,
+    this.initialDate,
+  }) : super(key: key);
 
   @override
   State<_CalendarBottomSheet> createState() => _CalendarBottomSheetState();
@@ -412,7 +446,9 @@ class _CalendarBottomSheetState extends State<_CalendarBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _focusedDay = DateTime.now();
+    // 初期表示は渡された日付、なければ現在日付
+    _focusedDay = widget.initialDate ?? DateTime.now();
+    _selectedDay = widget.initialDate;
   }
 
   @override
