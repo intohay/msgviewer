@@ -13,6 +13,8 @@ class Message extends StatelessWidget {
   final String? mediaPath;
   final String? thumbPath;
   final bool isFavorite; // ★ ここでお気に入りフラグを受け取る
+  
+  final String? highlightQuery;
 
   const Message({
     Key? key,
@@ -23,6 +25,8 @@ class Message extends StatelessWidget {
     this.mediaPath,
     this.thumbPath,
     this.isFavorite = false,
+
+    this.highlightQuery,
   }) : super(key: key);
 
   /// メディアの種類を判定して対応ウィジェットを返す

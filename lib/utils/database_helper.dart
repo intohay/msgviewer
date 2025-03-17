@@ -326,4 +326,22 @@ class DatabaseHelper {
     return combined;
   }
 
+
+  // DatabaseHelper.dart に追記
+  Future<List<Map<String, dynamic>>> searchMessagesByText(String? name, String queryText) async {
+    final db = await database;
+
+    // name(トーク相手)が一致していて、textカラムに検索文字列を含むメッセージを取得
+    // 大文字小文字を区別しない検索をしたい場合は、COLLATE などを利用する
+    // ここでは簡単に '%$queryText%' として部分一致検索しています
+    final result = await db.query(
+      'messages',
+      where: 'name = ? AND text LIKE ?',
+      whereArgs: [name, '%$queryText%'],
+      orderBy: 'id DESC', // 新しい順
+    );
+
+    return result;
+  }
+
 }

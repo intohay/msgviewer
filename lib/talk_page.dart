@@ -9,6 +9,7 @@ import 'menu/call_me_page.dart';
 import 'menu/favorites_page.dart';
 import 'menu/media_page.dart';
 import 'utils/helper.dart';
+import 'menu/text_search_page.dart';
 
 class TalkPage extends StatefulWidget {
   final Map<String, dynamic>? savedState;
@@ -361,6 +362,19 @@ class _TalkPageState extends State<TalkPage> {
         break;
       case "Date Search":
         _showDateSearchCalendar();
+        break;
+
+      case "Text Search":
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TextSearchPage(
+              name: widget.name,
+              iconPath: iconPath ?? "assets/images/icon.png",
+              callMeName: callMeName ?? "あなた",
+            )
+          )
+        );
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));
