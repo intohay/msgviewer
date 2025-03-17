@@ -344,4 +344,60 @@ class DatabaseHelper {
     return result;
   }
 
+  Future<void> deleteTalk(String talkName) async {
+    final db = await database;
+    // 1. 対象のトークのメッセージを取得
+    final messagesToDelete = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [talkName],
+    );
+    
+    // 2. 各メッセージに紐づくファイルを削除
+    for (final message in messagesToDelete) {
+      final filePath = message['filepath'] as String?;
+      final thumbFilePath = message['thumb_filepath'] as String?;
+      
+      // 通常ファイルの削除
+      if (filePath != null && filePath.isNotEmpty) {
+        final file = File(filePath);
+        if (await file.exists()) {
+          try {
+            await file.delete();
+          } catch (e) {
+            print('ファイル削除エラー: $e');
+          }
+        }
+      }
+      
+      // サムネイルファイルの削除
+      if (thumbFilePath != null && thumbFilePath.isNotEmpty) {
+        final thumbFile = File(thumbFilePath);
+        if (await thumbFile.exists()) {
+          try {
+            await thumbFile.delete();
+          } catch (e) {
+            print('サムネイル削除エラー: $e');
+          }
+        }
+      }
+    }
+    
+    // 3. Messages テーブルからトークのメッセージを削除
+    await db.delete(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [talkName],
+    );
+    
+    // 4. Talks テーブルからトークの設定（アイコンや呼ばれたい名前）を削除
+    await db.delete(
+      'Talks',
+      where: 'name = ?',
+      whereArgs: [talkName],
+    );
+    
+    print('トーク "$talkName" の削除が完了しました。');
+  }
+
 }

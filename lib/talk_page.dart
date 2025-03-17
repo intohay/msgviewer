@@ -253,6 +253,18 @@ class _TalkPageState extends State<TalkPage> {
             ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (messages.isNotEmpty) {
+            _itemScrollController.scrollTo(
+              index: 0, // 一番下（最古のメッセージ）にスクロール
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+            );
+          }
+        },
+        child: const Icon(Icons.arrow_downward),
+      ),
     );
   }
 

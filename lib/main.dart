@@ -16,7 +16,7 @@ Future<void> deleteDatabaseFile() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppConfig.initialize();
-  await deleteDatabaseFile();
+  // await deleteDatabaseFile();
 
   await initializeDateFormatting('ja_JP');
   runApp(const MyApp());
