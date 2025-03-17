@@ -4,6 +4,9 @@ import 'package:sqflite/sqflite.dart';
 import 'home_page.dart';
 import 'utils/app_config.dart';
 import 'package:path/path.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+
 
 Future<void> deleteDatabaseFile() async {
   String path = join(await getDatabasesPath(), 'app_data.db');
@@ -14,6 +17,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppConfig.initialize();
   await deleteDatabaseFile();
+
+  await initializeDateFormatting('ja_JP');
   runApp(const MyApp());
 }
 
