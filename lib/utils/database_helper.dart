@@ -157,11 +157,29 @@ class DatabaseHelper {
 
   Future<void> setIconPath(String name, String iconPath) async {
     final db = await database;
-    await db.insert(
+    
+    // まず既存のレコードがあるか確認
+    final existing = await db.query(
       'Talks',
-      {'name': name, 'icon_path': iconPath},
-      conflictAlgorithm: ConflictAlgorithm.replace, // 同じ `name` の場合は上書き
+      where: 'name = ?',
+      whereArgs: [name],
     );
+
+    if (existing.isNotEmpty) {
+      // 既存データがあれば更新
+      await db.update(
+        'Talks',
+        {'icon_path': iconPath},
+        where: 'name = ?',
+        whereArgs: [name],
+      );
+    } else {
+      // データがなければ挿入
+      await db.insert(
+        'Talks',
+        {'name': name, 'icon_path': iconPath},
+      );
+    }
   }
 
   // アイコンのパスを取得
@@ -182,11 +200,29 @@ class DatabaseHelper {
 
   Future<void> setCallMeName(String name, String callMeName) async {
     final db = await database;
-    await db.insert(
+    
+    // まず既存のレコードがあるか確認
+    final existing = await db.query(
       'Talks',
-      {'name': name, 'call_me': callMeName},
-      conflictAlgorithm: ConflictAlgorithm.replace, // 上書き保存
+      where: 'name = ?',
+      whereArgs: [name],
     );
+
+    if (existing.isNotEmpty) {
+      // 既存データがあれば更新
+      await db.update(
+        'Talks',
+        {'call_me': callMeName},
+        where: 'name = ?',
+        whereArgs: [name],
+      );
+    } else {
+      // データがなければ挿入
+      await db.insert(
+        'Talks',
+        {'name': name, 'call_me': callMeName},
+      );
+    }
   }
 
   Future<String?> getCallMeName(String name) async {
@@ -398,6 +434,23 @@ class DatabaseHelper {
     );
     
     print('トーク "$talkName" の削除が完了しました。');
+  }
+
+
+  // トークを追加
+  Future<void> addTalk(String talkName, String iconPath) async {
+    final db = await database;
+    await db.insert(
+      'Talks',
+      {'name': talkName, 'icon_path': iconPath},
+      conflictAlgorithm: ConflictAlgorithm.replace, // すでに存在する場合は上書き
+    );
+  }
+  
+  // すべてのトークを取得
+  Future<List<Map<String, dynamic>>> getAllTalks() async {
+    final db = await database;
+    return await db.query('Talks');
   }
 
 }

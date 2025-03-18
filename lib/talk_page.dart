@@ -322,6 +322,7 @@ class _TalkPageState extends State<TalkPage> {
           context,
           MaterialPageRoute(
             builder: (_) => IconChangePage(
+              talkName: widget.name ?? '',
               currentIconPath: iconPath ?? "assets/images/icon.png",
               onIconChanged: (newPath) {
                 setState(() {

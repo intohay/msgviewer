@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import '../utils/database_helper.dart';
+
+
 
 class IconChangePage extends StatefulWidget {
+  final String talkName;
   final String currentIconPath;
   final Function(String) onIconChanged;
 
-  const IconChangePage({Key? key, required this.currentIconPath, required this.onIconChanged}) : super(key: key);
+  const IconChangePage({Key? key, required this.talkName, required this.currentIconPath, required this.onIconChanged}) : super(key: key);
 
   @override
   _IconChangePageState createState() => _IconChangePageState();
@@ -37,6 +41,7 @@ class _IconChangePageState extends State<IconChangePage> {
 
     if (pickedFile != null) {
       final savedPath = await _saveImageLocally(pickedFile.path);
+      await DatabaseHelper().setIconPath(widget.talkName, savedPath);
       setState(() {
         iconPath = savedPath;
         print("iconPath: $iconPath");

@@ -17,6 +17,27 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> talkPages = []; // ZIPごとのTalkPageを管理
   final dbHelper = DatabaseHelper(); // アイコンパス取得などに使用
 
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTalkPages();
+  }
+
+  Future<void> _loadTalkPages() async {
+    final talks = await dbHelper.getAllTalks();
+    setState(() {
+      talkPages = talks.map((talk) {
+        return {
+          'name': talk['name'],
+          'iconPath': talk['icon_path'] ?? 'assets/images/icon.png',
+          'savedState': <String, dynamic>{}, // 必要ならここでさらに保存状態を復元
+        };
+      }).toList();
+    });
+  }
+
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +69,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
                 if (result != null && result is Map<String, dynamic>) {
+                  // await dbHelper.setIconPath(talk['name'], result['iconPath']);
                   setState(() {
                     talkPages[index]['savedState'] = result; 
                     talkPages[index]['iconPath'] = result['iconPath'];
@@ -151,9 +173,10 @@ class _HomePageState extends State<HomePage> {
       String? name = await fileManager.processZip(zipFilePath);
       if (name == null) return;
 
-      String? iconPath = await dbHelper.getIconPath(name);
-      iconPath ??= "assets/images/icon.png"; // アイコンパスが未設定の場合はデフォルトアイコンを設定
+      String iconPath = "assets/images/icon.png";
 
+      await dbHelper.addTalk(name, iconPath);
+      
       setState(() {
         talkPages.add({
           'name': name,

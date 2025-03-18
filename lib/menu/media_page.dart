@@ -389,7 +389,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     final Map<String, List<Map<String, dynamic>>> grouped = {};
     for (var row in items) {
       final dt = DateTime.parse(row['date']);
-      final String key = "${dt.year}年${dt.month}月";
+      final String key = "${dt.year}年${dt.month.toString().padLeft(2, '0')}月";
       grouped.putIfAbsent(key, () => []);
       grouped[key]!.add(row);
     }
