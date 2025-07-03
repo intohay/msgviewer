@@ -35,6 +35,9 @@ class _InlineImageState extends State<InlineImage> {
                 child: PhotoView(
                   imageProvider: image,
                   backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  minScale: PhotoViewComputedScale.contained * 0.5,
+                  maxScale: PhotoViewComputedScale.covered * 3.0,
+                  initialScale: PhotoViewComputedScale.contained,
                 ),
               ),
               Positioned(
