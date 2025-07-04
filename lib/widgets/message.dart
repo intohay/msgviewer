@@ -105,6 +105,12 @@ class Message extends StatelessWidget {
                     if (mediaPath != null &&
                         mediaPath!.isNotEmpty)
                       ifMedia(mediaPath!, thumbPath ?? ''),
+                    // メディアとテキストの間に間隔を追加
+                    if (mediaPath != null && 
+                        mediaPath!.isNotEmpty && 
+                        message != null && 
+                        message!.isNotEmpty)
+                      const SizedBox(height: 10),
                     if (message != null && message!.isNotEmpty)
                       _buildMessageText(message!),
                   ],

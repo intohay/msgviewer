@@ -153,7 +153,7 @@ class _InlineVideoState extends State<InlineVideo> {
         _showOverlay(context, VideoPlayerPage(videoPath: widget.videoPath));
       },
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 10.0),
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: displayedWidget,
       ),
     );

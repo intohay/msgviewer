@@ -91,7 +91,7 @@ class _InlineImageState extends State<InlineImage> {
         _showOverlay(context, FileImage(fullImage));
       },
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 10.0),
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: imageWidget,
       ),
     );
