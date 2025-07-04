@@ -32,6 +32,9 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
 
   bool isLoading = true;
 
+  // ★ TabController を追加
+  late TabController _tabController;
+
   // ★ オーディオプレイヤー関連
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _currentAudioPath;   // 再生中の音声ファイルパス
@@ -46,6 +49,10 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    
+    // ★ TabController を初期化
+    _tabController = TabController(length: 3, vsync: this);
+    
     _loadMedia();
 
     // ★ AudioPlayer のストリーム購読
@@ -71,10 +78,19 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
         }
       });
     });
+
+    // ★ タブ変更を監視して、音声タブ以外では音声を停止
+    _tabController.addListener(() {
+      if (_tabController.index != 2) {  // 音声タブ（index=2）以外
+        _pauseAudio();
+      }
+      setState(() {}); // UIを更新
+    });
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -166,15 +182,21 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     });
   }
 
+  /// 音声を一時停止（他のタブに移動時）
+  void _pauseAudio() {
+    if (_isPlaying) {
+      _audioPlayer.pause();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3, // 画像, 動画, 音声の3タブ
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: Text("${widget.name} のメディア一覧"),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
               Tab(icon: Icon(Icons.image)),       // 画像
               Tab(icon: Icon(Icons.video_file)),  // 動画
               Tab(icon: Icon(Icons.audiotrack)),  // 音声
@@ -184,6 +206,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
         body: isLoading
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
+                controller: _tabController,
                 children: [
                   // 画像タブ
                   _buildGroupedGrid(imageList, "画像がありません", isImage: true),
@@ -193,10 +216,9 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                   _buildAudioList(audioList, "音声がありません"),
                 ],
               ),
-        // ★ 下部に常に表示するオーディオプレイヤー
-        bottomNavigationBar: _buildAudioPlayerBar(),
-      ),
-    );
+        // ★ 音声タブでのみオーディオプレイヤーを表示
+        bottomNavigationBar: _tabController.index == 2 ? _buildAudioPlayerBar() : null,
+      );
   }
 
   //==================================================
