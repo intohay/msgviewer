@@ -349,7 +349,37 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_calcAudioLength(row)), // 長さを表示
+                      // 音声の長さを非同期で取得して表示
+                      FutureBuilder<String>(
+                        future: _getAudioDuration(filePath),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.timer, size: 14, color: Colors.blue.shade700),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    snapshot.data!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox(width: 60); // プレースホルダー
+                        },
+                      ),
                       const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.open_in_new, size: 20),
@@ -462,9 +492,30 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
 
   /// 音声の長さなどをDBに入れてない場合は "" を返すか、
   /// あるいは計算して表示するなど
-  String _calcAudioLength(Map<String, dynamic> row) {
-    // ここではダミーで "" を返す
-    // もし音声の長さを事前に計算してDBに保存しているなら表示
+  /// 音声ファイルの長さを取得（キャッシュ付き）
+  final Map<String, String> _audioDurationCache = {};
+  
+  Future<String> _getAudioDuration(String filePath) async {
+    // キャッシュに存在する場合はそれを返す
+    if (_audioDurationCache.containsKey(filePath)) {
+      return _audioDurationCache[filePath]!;
+    }
+    
+    try {
+      final player = AudioPlayer();
+      final duration = await player.setFilePath(filePath);
+      await player.dispose();
+      
+      if (duration != null) {
+        final formatted = _formatDuration(duration);
+        _audioDurationCache[filePath] = formatted;
+        return formatted;
+      }
+    } catch (e) {
+      print('Error getting audio duration: $e');
+    }
+    
     return "";
   }
+  
 }
