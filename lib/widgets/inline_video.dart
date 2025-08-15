@@ -3,8 +3,8 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:intl/intl.dart';
 import '../utils/overlay_manager.dart';
+import 'media_viewer_overlay.dart';
 
 // 動画のインライン再生サムネイル
 class InlineVideo extends StatefulWidget {
@@ -20,6 +20,12 @@ class InlineVideo extends StatefulWidget {
   
   /// 日時（オーバーレイ表示用）
   final DateTime? time;
+  
+  /// 全メディアリスト（スワイプでの切り替え用）
+  final List<Map<String, dynamic>>? allMedia;
+  
+  /// 現在のメディアのインデックス
+  final int? currentIndex;
 
   const InlineVideo({
     Key? key,
@@ -28,6 +34,8 @@ class InlineVideo extends StatefulWidget {
     this.isSquare = false,
     this.showPlayIcon = true,
     this.time,
+    this.allMedia,
+    this.currentIndex,
   }) : super(key: key);
 
   @override
@@ -89,334 +97,32 @@ class _InlineVideoState extends State<InlineVideo> {
   }
 
   /// フルスクリーンの動画再生をオーバーレイで表示
-  void _showOverlay(BuildContext context, String videoPath) {
-    // スワイプ用の変数
-    double verticalDragOffset = 0;
-    double opacity = 1.0;
-    bool showInfo = true; // オーバーレイの情報表示状態
-    Timer? hideTimer;
-    VideoPlayerController? controller;
-    bool isPlaying = false;
-    Duration position = Duration.zero;
-    Duration duration = Duration.zero;
+  void _showOverlay(BuildContext context) {
+    // allMediaがない場合は現在の動画のみのリストを作成
+    final List<Map<String, dynamic>> mediaList;
+    final int initialIndex;
     
-    // 動画コントローラーの初期化
-    final videoFile = File(videoPath);
-    
-    // 10秒後に自動的に情報を非表示にする
-    void startHideTimer(Function setState, BuildContext context) {
-      hideTimer?.cancel();
-      hideTimer = Timer(const Duration(seconds: 10), () {
-        if (context.mounted) {
-          setState(() {
-            showInfo = false;
-          });
-        }
-      });
+    if (widget.allMedia != null && widget.allMedia!.isNotEmpty) {
+      mediaList = widget.allMedia!;
+      initialIndex = widget.currentIndex ?? 0;
+    } else {
+      // 単体の動画を表示する場合
+      mediaList = [{
+        'filepath': widget.videoPath,
+        'thumb_filepath': widget.thumbnailPath,
+        'text': '',  // 動画単体の場合メッセージはなし
+        'date': widget.time?.toIso8601String(),
+      }];
+      initialIndex = 0;
     }
     
-    final overlayEntry = OverlayEntry(
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          // 動画コントローラーの初期化（StatefulBuilder内で一度だけ）
-          if (controller == null && videoFile.existsSync()) {
-            controller = VideoPlayerController.file(videoFile)
-              ..initialize().then((_) {
-                if (context.mounted) {
-                  setState(() {
-                    isPlaying = true;
-                    duration = controller!.value.duration;
-                  });
-                  controller!.play();
-                  controller!.setLooping(true);
-                  
-                  // 位置の更新をリスニング
-                  controller!.addListener(() {
-                    if (controller!.value.isInitialized && context.mounted) {
-                      setState(() {
-                        position = controller!.value.position;
-                        duration = controller!.value.duration;
-                        isPlaying = controller!.value.isPlaying;
-                      });
-                    }
-                  });
-                }
-              }).catchError((error) {
-                print('VideoPlayer: Error initializing video: $error');
-              });
-          }
-          
-          // 初回のタイマー開始
-          if (hideTimer == null && showInfo) {
-            startHideTimer(setState, context);
-          }
-          
-          return GestureDetector(
-            onVerticalDragUpdate: (details) {
-              setState(() {
-                verticalDragOffset += details.delta.dy;
-                // 下にスワイプした時のみ反応（上スワイプは無視）
-                if (verticalDragOffset > 0) {
-                  // スワイプ量に応じて透明度を調整
-                  opacity = (1.0 - (verticalDragOffset / 300)).clamp(0.0, 1.0);
-                } else {
-                  verticalDragOffset = 0;
-                  opacity = 1.0;
-                }
-              });
-            },
-            onVerticalDragEnd: (details) {
-              // 100ピクセル以上下にスワイプするか、速度が一定以上なら閉じる
-              if (verticalDragOffset > 100 || 
-                  (details.primaryVelocity != null && details.primaryVelocity! > 500)) {
-                hideTimer?.cancel();
-                controller?.dispose();
-                _overlayManager.closeOverlay();
-              } else {
-                // 閉じない場合は元に戻す
-                setState(() {
-                  verticalDragOffset = 0;
-                  opacity = 1.0;
-                });
-              }
-            },
-            onTap: () {
-              if (showInfo) {
-                // 情報が表示されている場合は非表示にする
-                setState(() {
-                  showInfo = false;
-                  hideTimer?.cancel();
-                });
-              } else {
-                // 情報が非表示の場合は再表示する
-                setState(() {
-                  showInfo = true;
-                  // 再度タイマーを開始
-                  startHideTimer(setState, context);
-                });
-              }
-            },
-            child: Stack(
-              children: [
-                // 背景（透明度変化）
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 100),
-                  color: Colors.black.withOpacity(opacity),
-                ),
-                // 動画プレイヤーとUIコントロール（一緒に動く）
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 100),
-                  transform: Matrix4.translationValues(0, verticalDragOffset, 0),
-                  child: Stack(
-                    children: <Widget>[
-                      // 動画プレイヤー本体
-                      Positioned.fill(
-                        child: controller != null && controller!.value.isInitialized
-                            ? Center(
-                                child: AspectRatio(
-                                  aspectRatio: controller!.value.aspectRatio,
-                                  child: VideoPlayer(controller!),
-                                ),
-                              )
-                            : const Center(child: CircularProgressIndicator()),
-                      ),
-                      // 上部の日時表示とナビゲーション
-                      if (showInfo)
-                        Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.grey.shade900.withOpacity(0.7),
-                            padding: EdgeInsets.only(
-                              top: MediaQuery.of(context).padding.top + 15,
-                              bottom: 15,
-                              left: 20,
-                              right: 20,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                // 中央に日時表示
-                                if (widget.time != null)
-                                  Expanded(
-                                    child: Text(
-                                      DateFormat('yyyy/MM/dd HH:mm').format(widget.time!),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.none,
-                                        letterSpacing: 0.5,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                // 右側の×ボタン
-                                GestureDetector(
-                                  onTap: () {
-                                    hideTimer?.cancel();
-                                    controller?.dispose();
-                                    _overlayManager.closeOverlay();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    child: const Icon(
-                                      Icons.close,
-                                      size: 30,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      // 中央の再生コントロール
-                      if (showInfo && controller != null && controller!.value.isInitialized)
-                        Positioned.fill(
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // 5秒巻き戻し
-                                GestureDetector(
-                                  onTap: () {
-                                    final newPosition = position - const Duration(seconds: 5);
-                                    controller!.seekTo(newPosition);
-                                    startHideTimer(setState, context); // タイマーリセット
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.replay_5,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 30),
-                                // 再生/一時停止
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (isPlaying) {
-                                        controller!.pause();
-                                      } else {
-                                        controller!.play();
-                                      }
-                                    });
-                                    startHideTimer(setState, context); // タイマーリセット
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      isPlaying ? Icons.pause : Icons.play_arrow,
-                                      color: Colors.white,
-                                      size: 50,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 30),
-                                // 5秒早送り
-                                GestureDetector(
-                                  onTap: () {
-                                    final newPosition = position + const Duration(seconds: 5);
-                                    controller!.seekTo(newPosition);
-                                    startHideTimer(setState, context); // タイマーリセット
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.forward_5,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      // 下部のシークバーと時間表示
-                      if (showInfo && controller != null && controller!.value.isInitialized)
-                        Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: Container(
-                            color: Colors.grey.shade900.withOpacity(0.7),
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).padding.bottom + 20,
-                              top: 20,
-                              left: 20,
-                              right: 20,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // プログレスバー
-                                VideoProgressIndicator(
-                                  controller!,
-                                  allowScrubbing: true,
-                                  colors: const VideoProgressColors(
-                                    playedColor: Colors.white,
-                                    bufferedColor: Colors.grey,
-                                    backgroundColor: Colors.black26,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                // 時間表示
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatDuration(position),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatDuration(duration),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    MediaViewerOverlay.show(
+      context: context,
+      allMedia: mediaList,
+      initialIndex: initialIndex,
+      overlayManager: _overlayManager,
     );
-    // OverlayManagerを通じて表示
-    _overlayManager.showOverlay(context, overlayEntry);
   }
-  
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     String minutes = twoDigits(duration.inMinutes.remainder(60));
@@ -514,7 +220,7 @@ class _InlineVideoState extends State<InlineVideo> {
           return;
         }
         // フルスクリーン再生をオーバーレイ表示
-        _showOverlay(context, widget.videoPath);
+        _showOverlay(context);
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0),

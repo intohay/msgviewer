@@ -274,6 +274,9 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     isSquare: true,
                     message: message,
                     time: dateTime,
+                    // 画像タブでは画像のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
+                    allMedia: imageList,
+                    currentIndex: imageList.indexWhere((item) => item['id'] == row['id']),
                   );
                 } else {
                   // 動画
@@ -283,6 +286,9 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     isSquare: true,
                     showPlayIcon: false,
                     time: dateTime,
+                    // 動画タブでは動画のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
+                    allMedia: videoList,
+                    currentIndex: videoList.indexWhere((item) => item['id'] == row['id']),
                   );
                 }
               },

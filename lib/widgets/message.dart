@@ -15,6 +15,10 @@ class Message extends StatelessWidget {
   final bool isFavorite; // ★ ここでお気に入りフラグを受け取る
   
   final String? highlightQuery;
+  
+  // スワイプで切り替えるためのメディアリスト
+  final List<Map<String, dynamic>>? allMedia;
+  final int? currentMediaIndex;
 
   const Message({
     Key? key,
@@ -27,6 +31,8 @@ class Message extends StatelessWidget {
     this.isFavorite = false,
 
     this.highlightQuery,
+    this.allMedia,
+    this.currentMediaIndex,
   }) : super(key: key);
 
   /// メディアの種類を判定して対応ウィジェットを返す
@@ -37,6 +43,8 @@ class Message extends StatelessWidget {
         thumbnailPath: thumbPath,
         message: message,
         time: time,
+        allMedia: allMedia,
+        currentIndex: currentMediaIndex,
       );
     } else if (mediaPath.endsWith('.m4a') ||
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
@@ -46,6 +54,8 @@ class Message extends StatelessWidget {
         videoPath: mediaPath, 
         thumbnailPath: thumbPath,
         time: time,
+        allMedia: allMedia,
+        currentIndex: currentMediaIndex,
       );
     } else {
       return const Text("Unsupported media type");

@@ -365,6 +365,26 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
             itemBuilder: (context, index) {
               final row = messages[index];
               final isFavorite = (row['is_favorite'] == 1);
+              
+              // メディアファイルを持つメッセージのみを抽出し、逆順にする
+              // （PageViewは左スワイプでindex増加、右スワイプでindex減少なので）
+              final allMediaMessages = messages.where((msg) {
+                final path = msg['filepath'] as String?;
+                return path != null && 
+                       path.isNotEmpty && 
+                       (path.endsWith('.jpg') || 
+                        path.endsWith('.png') || 
+                        path.endsWith('.mp4'));
+              }).toList().reversed.toList();
+              
+              // 現在のメッセージがメディアを持つ場合、そのインデックスを取得
+              int? currentMediaIndex;
+              if (row['filepath'] != null && row['filepath'].isNotEmpty) {
+                final path = row['filepath'] as String;
+                if (path.endsWith('.jpg') || path.endsWith('.png') || path.endsWith('.mp4')) {
+                  currentMediaIndex = allMediaMessages.indexWhere((msg) => msg['id'] == row['id']);
+                }
+              }
 
               return GestureDetector(
                 onLongPress: () async {
@@ -382,6 +402,8 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                   mediaPath: row['filepath'],
                   thumbPath: row['thumb_filepath'],
                   isFavorite: isFavorite,
+                  allMedia: currentMediaIndex != null ? allMediaMessages : null,
+                  currentMediaIndex: currentMediaIndex,
                 ),
               );
             },
