@@ -552,6 +552,15 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       initialCalendarDate = DateTime.parse(messages[medianIndex]['date']);
     }
     
+    // トーク履歴の最小・最大日付を取得
+    DateTime? minDate;
+    DateTime? maxDate;
+    if (messages.isNotEmpty) {
+      // messagesは新しい順なので、最初が最新、最後が最古
+      maxDate = DateTime.parse(messages.first['date']);
+      minDate = DateTime.parse(messages.last['date']);
+    }
+    
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
@@ -575,6 +584,8 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                 Expanded(
                   child: _CalendarBottomSheet(
                     initialDate: initialCalendarDate,
+                    minDate: minDate,
+                    maxDate: maxDate,
                     onDateSelected: (selectedDate) {
                       // 日付選択時の処理（既存の処理）
                       _jumpToDate(selectedDate);
@@ -601,11 +612,15 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
 class _CalendarBottomSheet extends StatefulWidget {
   final Function(DateTime) onDateSelected;
   final DateTime? initialDate; // 初期表示する日付を受け取る
+  final DateTime? minDate; // 最小日付
+  final DateTime? maxDate; // 最大日付
 
   const _CalendarBottomSheet({
     Key? key,
     required this.onDateSelected,
     this.initialDate,
+    this.minDate,
+    this.maxDate,
   }) : super(key: key);
 
   @override
@@ -621,33 +636,250 @@ class _CalendarBottomSheetState extends State<_CalendarBottomSheet> {
     super.initState();
     // 初期表示は渡された日付、なければ現在日付
     _focusedDay = widget.initialDate ?? DateTime.now();
+    
+    // focusedDayが範囲内にあることを確認
+    if (widget.minDate != null && _focusedDay.isBefore(widget.minDate!)) {
+      _focusedDay = widget.minDate!;
+    }
+    if (widget.maxDate != null && _focusedDay.isAfter(widget.maxDate!)) {
+      _focusedDay = widget.maxDate!;
+    }
+    
     _selectedDay = widget.initialDate;
   }
 
   @override
   Widget build(BuildContext context) {
-    return TableCalendar(
-      focusedDay: _focusedDay,
-      firstDay: DateTime(2017),
-      lastDay: DateTime(2050),
-      locale: 'ja_JP',
-      calendarFormat: CalendarFormat.month,
-      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-      onDaySelected: (selectedDay, focusedDay) {
-        setState(() {
-          _selectedDay = selectedDay;
-          _focusedDay = focusedDay;
-        });
-        widget.onDateSelected(selectedDay);
+    return Column(
+      children: [
+        // カスタムヘッダー
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // 左矢印 - 最小月に達したら非表示
+              SizedBox(
+                width: 48,
+                child: (widget.minDate != null &&
+                        _focusedDay.year == widget.minDate!.year &&
+                        _focusedDay.month == widget.minDate!.month)
+                    ? null // 非表示
+                    : IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: () {
+                          setState(() {
+                            final newDate = DateTime(
+                              _focusedDay.year,
+                              _focusedDay.month - 1,
+                            );
+                            _focusedDay = newDate;
+                          });
+                        },
+                      ),
+              ),
+              GestureDetector(
+                onTap: () => _showYearMonthPicker(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${_focusedDay.year}年${_focusedDay.month}月',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              // 右矢印 - 最大月に達したら非表示
+              SizedBox(
+                width: 48,
+                child: (widget.maxDate != null &&
+                        _focusedDay.year == widget.maxDate!.year &&
+                        _focusedDay.month == widget.maxDate!.month)
+                    ? null // 非表示
+                    : IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: () {
+                          setState(() {
+                            final newDate = DateTime(
+                              _focusedDay.year,
+                              _focusedDay.month + 1,
+                            );
+                            _focusedDay = newDate;
+                          });
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        // カレンダー本体
+        Expanded(
+          child: TableCalendar(
+            focusedDay: _focusedDay,
+            firstDay: widget.minDate != null 
+                ? DateTime(widget.minDate!.year, widget.minDate!.month, 1)
+                : DateTime(2017, 1, 1),
+            lastDay: widget.maxDate != null
+                ? DateTime(widget.maxDate!.year, widget.maxDate!.month + 1, 0) // 月末日
+                : DateTime(2050, 12, 31),
+            locale: 'ja_JP',
+            calendarFormat: CalendarFormat.month,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+              widget.onDateSelected(selectedDay);
+            },
+            onPageChanged: (focusedDay) {
+              setState(() {
+                _focusedDay = focusedDay;
+              });
+            },
+            // Remove the format button
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Month',
+            },
+            headerStyle: HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+              headerMargin: EdgeInsets.zero,
+              headerPadding: EdgeInsets.zero,
+              leftChevronVisible: false,
+              rightChevronVisible: false,
+              titleTextFormatter: (date, locale) => '', // タイトルテキストを空にする
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showYearMonthPicker(BuildContext context) {
+    int selectedYear = _focusedDay.year;
+    int selectedMonth = _focusedDay.month;
+    
+    // 利用可能な年のリストを作成
+    final minYear = widget.minDate?.year ?? 2017;
+    final maxYear = widget.maxDate?.year ?? DateTime.now().year;
+    final yearCount = maxYear - minYear + 1;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // 選択された年に応じて利用可能な月を計算
+            int minMonth = 1;
+            int maxMonth = 12;
+            if (widget.minDate != null && selectedYear == widget.minDate!.year) {
+              minMonth = widget.minDate!.month;
+            }
+            if (widget.maxDate != null && selectedYear == widget.maxDate!.year) {
+              maxMonth = widget.maxDate!.month;
+            }
+            
+            // 現在選択されている月が範囲外の場合は調整
+            if (selectedMonth < minMonth) {
+              selectedMonth = minMonth;
+            } else if (selectedMonth > maxMonth) {
+              selectedMonth = maxMonth;
+            }
+            
+            return AlertDialog(
+              title: const Text('年月を選択'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 150, // 高さを300から150に変更
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // 年の選択
+                    Row(
+                      children: [
+                        const Text('年: ', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButton<int>(
+                            value: selectedYear,
+                            isExpanded: true,
+                            items: List.generate(
+                              yearCount,
+                              (index) => DropdownMenuItem(
+                                value: minYear + index,
+                                child: Text('${minYear + index}年'),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedYear = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16), // 間隔を24から16に変更
+                    // 月の選択
+                    Row(
+                      children: [
+                        const Text('月: ', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButton<int>(
+                            value: selectedMonth,
+                            isExpanded: true,
+                            items: List.generate(
+                              maxMonth - minMonth + 1,
+                              (index) => DropdownMenuItem(
+                                value: minMonth + index,
+                                child: Text('${minMonth + index}月'),
+                              ),
+                            ),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedMonth = value!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('キャンセル'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _focusedDay = DateTime(selectedYear, selectedMonth);
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('選択'),
+                ),
+              ],
+            );
+          },
+        );
       },
-      // Remove the format button
-      availableCalendarFormats: const {
-        CalendarFormat.month: 'Month',
-      },
-      headerStyle: const HeaderStyle(
-        formatButtonVisible: false,
-        titleCentered: true,
-      ),
     );
   }
 }
