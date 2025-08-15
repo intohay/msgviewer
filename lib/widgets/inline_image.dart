@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:photo_view/photo_view.dart';
 
 class InlineImage extends StatefulWidget {
   final String imagePath;
@@ -24,28 +23,55 @@ class InlineImage extends StatefulWidget {
 class _InlineImageState extends State<InlineImage> {
   OverlayEntry? overlayEntry;
 
+  @override
+  void dispose() {
+    // ウィジェットが破棄される際にオーバーレイも削除
+    overlayEntry?.remove();
+    overlayEntry = null;
+    super.dispose();
+  }
+
   void _showOverlay(BuildContext context, FileImage image) {
+    // 新しいオーバーレイを表示する前に、既存のものを削除
+    overlayEntry?.remove();
+    overlayEntry = null;
+    
     overlayEntry = OverlayEntry(
-      builder: (context) => Positioned.fill(
-        child: Material(
+      builder: (overlayContext) => GestureDetector(
+        onTap: () {
+          // 背景タップで閉じる
+          overlayEntry?.remove();
+          overlayEntry = null;
+        },
+        child: Container(
           color: Colors.black,
           child: Stack(
             children: <Widget>[
               Positioned.fill(
-                child: PhotoView(
-                  imageProvider: image,
-                  backgroundDecoration: const BoxDecoration(color: Colors.black),
-                  minScale: PhotoViewComputedScale.contained * 0.5,
-                  maxScale: PhotoViewComputedScale.covered * 3.0,
-                  initialScale: PhotoViewComputedScale.contained,
+                child: InteractiveViewer(
+                  minScale: 1.0,  // 最小スケールを1.0に設定（元のサイズより小さくできない）
+                  maxScale: 3.0,  // 最大3倍まで拡大可能
+                  boundaryMargin: EdgeInsets.zero,  // 画像を画面外に移動できないようにする
+                  constrained: true,  // 画像を制約内に保つ
+                  child: Center(
+                    child: Image(
+                      image: image,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                 ),
               ),
               Positioned(
-                top: 40,
+                top: MediaQuery.of(context).padding.top + 10,
                 left: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.close, size: 30, color: Colors.white),
-                  onPressed: () => overlayEntry?.remove(),
+                child: SafeArea(
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 30, color: Colors.white),
+                    onPressed: () {
+                      overlayEntry?.remove();
+                      overlayEntry = null;
+                    },
+                  ),
                 ),
               ),
             ],
@@ -53,6 +79,7 @@ class _InlineImageState extends State<InlineImage> {
         ),
       ),
     );
+    
     Overlay.of(context).insert(overlayEntry!);
   }
 
