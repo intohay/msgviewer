@@ -51,6 +51,7 @@ class _InlineVideoState extends State<InlineVideo> {
   String? _thumbnailPath;
   bool _isLoading = true;
   double _aspectRatio = 16 / 9;
+  Duration? _videoDuration;
 
   @override
   void initState() {
@@ -64,8 +65,11 @@ class _InlineVideoState extends State<InlineVideo> {
     super.dispose();
   }
 
-  /// サムネイル画像のアスペクト比を取得
+  /// サムネイル画像のアスペクト比を取得 + 動画の長さを取得
   Future<void> _initializeDisplay() async {
+    // 動画のメタデータを取得
+    await _loadVideoDuration();
+    
     final thumbFile = File(widget.thumbnailPath);
     if (await thumbFile.exists()) {
       try {
@@ -97,6 +101,28 @@ class _InlineVideoState extends State<InlineVideo> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// 動画の長さを取得
+  Future<void> _loadVideoDuration() async {
+    try {
+      final videoFile = File(widget.videoPath);
+      if (await videoFile.exists()) {
+        // 動画の長さを取得
+        final controller = VideoPlayerController.file(videoFile);
+        await controller.initialize();
+        
+        if (mounted) {
+          setState(() {
+            _videoDuration = controller.value.duration;
+          });
+        }
+        
+        controller.dispose();
+      }
+    } catch (e) {
+      print('InlineVideo: Error loading video metadata: $e');
     }
   }
 
@@ -176,6 +202,41 @@ class _InlineVideoState extends State<InlineVideo> {
       );
     }
 
+    // 動画の長さと音声インジケーターのオーバーレイ
+    List<Widget> overlayChildren = [
+      thumbnailWidget,
+    ];
+    
+    // 再生アイコンを表示
+    if (widget.showPlayIcon) {
+      overlayChildren.add(playIcon);
+    }
+    
+    // 動画の長さと音声アイコンを表示（右下）
+    if (_videoDuration != null) {
+      overlayChildren.add(
+        Positioned(
+          bottom: 8,
+          right: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              _formatDuration(_videoDuration!),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     // 正方形表示 or 従来の高さ250px表示
     Widget displayedWidget;
     if (widget.isSquare) {
@@ -184,10 +245,7 @@ class _InlineVideoState extends State<InlineVideo> {
         aspectRatio: 1.0,
         child: Stack(
           fit: StackFit.expand,
-          children: [
-            thumbnailWidget,
-            playIcon,
-          ],
+          children: overlayChildren,
         ),
       );
     } else {
@@ -203,10 +261,7 @@ class _InlineVideoState extends State<InlineVideo> {
             width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth,
             child: Stack(
               fit: StackFit.expand,
-              children: [
-                thumbnailWidget,
-                playIcon,
-              ],
+              children: overlayChildren,
             ),
           ),
         );
@@ -319,7 +374,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
             if (_showOverlay)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha: 0.3),
                   child: Stack(
                     children: [
                       // 中央の再生・巻戻し・早送り
