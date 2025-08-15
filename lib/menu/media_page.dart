@@ -277,6 +277,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     // 画像タブでは画像のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: imageList,
                     currentIndex: imageList.indexWhere((item) => item['id'] == row['id']),
+                    talkName: widget.name,  // トーク画面へのジャンプ用
                   );
                 } else {
                   // 動画
@@ -289,6 +290,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     // 動画タブでは動画のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: videoList,
                     currentIndex: videoList.indexWhere((item) => item['id'] == row['id']),
+                    talkName: widget.name,  // トーク画面へのジャンプ用
                   );
                 }
               },
@@ -344,7 +346,22 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                   ),
                   title: Text(widget.name),
                   subtitle: Text(timeLabel),
-                  trailing: Text(_calcAudioLength(row)), // 長さを表示するなら
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_calcAudioLength(row)), // 長さを表示
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.open_in_new, size: 20),
+                        onPressed: () {
+                          // トーク画面の該当位置にジャンプ
+                          Navigator.of(context).pop({
+                            'jumpToDate': dt,
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                   onTap: () {
                     // タップで再生開始
                     _playAudio(filePath, "${widget.name} $timeLabel");

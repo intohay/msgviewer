@@ -11,6 +11,7 @@ class MediaViewerOverlay {
     required List<Map<String, dynamic>> allMedia,
     required int initialIndex,
     required OverlayManager overlayManager,
+    String? talkName,  // トーク画面へのジャンプ用
   }) {
     // スワイプ用の変数
     double verticalDragOffset = 0;
@@ -345,6 +346,45 @@ class MediaViewerOverlay {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                // 左側にトークへジャンプボタン（talkNameが指定されている場合のみ）
+                                if (talkName != null)
+                                  GestureDetector(
+                                    onTap: () {
+                                      // 現在表示中のメディアの日付を取得
+                                      if (currentPageIndex < allMedia.length) {
+                                        final currentMedia = allMedia[currentPageIndex];
+                                        final dateStr = currentMedia['date'] as String?;
+                                        if (dateStr != null) {
+                                          final dateTime = DateTime.tryParse(dateStr);
+                                          if (dateTime != null) {
+                                            hideTimer?.cancel();
+                                            // 動画コントローラーを破棄
+                                            videoControllers.forEach((_, controller) {
+                                              controller.dispose();
+                                            });
+                                            pageController.dispose();
+                                            overlayManager.closeOverlay();
+                                            
+                                            // トーク画面にジャンプ（結果を返して戻る）
+                                            Navigator.of(context).pop({
+                                              'jumpToDate': dateTime,
+                                            });
+                                          }
+                                        }
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      child: const Icon(
+                                        Icons.open_in_new,
+                                        size: 24,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 40),  // スペース確保
+                                
                                 // 中央に日時表示とページインジケーター
                                 Expanded(
                                   child: Column(

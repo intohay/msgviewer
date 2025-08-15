@@ -26,6 +26,9 @@ class InlineVideo extends StatefulWidget {
   
   /// 現在のメディアのインデックス
   final int? currentIndex;
+  
+  /// トーク名（トーク画面へのジャンプ用）
+  final String? talkName;
 
   const InlineVideo({
     Key? key,
@@ -36,6 +39,7 @@ class InlineVideo extends StatefulWidget {
     this.time,
     this.allMedia,
     this.currentIndex,
+    this.talkName,
   }) : super(key: key);
 
   @override
@@ -121,6 +125,7 @@ class _InlineVideoState extends State<InlineVideo> {
       allMedia: mediaList,
       initialIndex: initialIndex,
       overlayManager: _overlayManager,
+      talkName: widget.talkName,
     );
   }
   String _formatDuration(Duration duration) {

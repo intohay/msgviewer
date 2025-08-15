@@ -539,7 +539,12 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
               callMeName: callMeName ?? "あなた",
             ),
           ),
-        );
+        ).then((result) {
+          // メディア一覧から戻ってきた時にジャンプ指定があれば実行
+          if (result != null && result['jumpToDate'] != null) {
+            _jumpToDate(result['jumpToDate']);
+          }
+        });
         break;
       case "Date Search":
         _showDateSearchCalendar();
@@ -555,7 +560,12 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
               callMeName: callMeName ?? "あなた",
             )
           )
-        );
+        ).then((result) {
+          // テキスト検索から戻ってきた時にジャンプ指定があれば実行
+          if (result != null && result['jumpToDate'] != null) {
+            _jumpToDate(result['jumpToDate']);
+          }
+        });
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));

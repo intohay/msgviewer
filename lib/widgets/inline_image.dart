@@ -22,6 +22,9 @@ class InlineImage extends StatefulWidget {
   
   /// 現在のメディアのインデックス
   final int? currentIndex;
+  
+  /// トーク名（トーク画面へのジャンプ用）
+  final String? talkName;
 
   const InlineImage({
     super.key,
@@ -32,6 +35,7 @@ class InlineImage extends StatefulWidget {
     this.time,
     this.allMedia,
     this.currentIndex,
+    this.talkName,
   });
 
   @override
@@ -70,6 +74,7 @@ class _InlineImageState extends State<InlineImage> {
       allMedia: mediaList,
       initialIndex: initialIndex,
       overlayManager: _overlayManager,
+      talkName: widget.talkName,
     );
   }
     
