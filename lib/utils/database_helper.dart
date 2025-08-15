@@ -88,7 +88,7 @@ class DatabaseHelper {
 
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 7, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 8, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -163,6 +163,11 @@ class DatabaseHelper {
           print('audio_duration column added successfully');
         }
       }
+      if (oldVersion < 8) {
+        print('Upgrading to version 8: Converting icon paths to relative paths');
+        // アイコンパスを相対パスに変換
+        await _migrateIconPathsToRelative(db);
+      }
     });
   }
 
@@ -208,6 +213,49 @@ class DatabaseHelper {
       print('Successfully migrated paths to relative format');
     } catch (e) {
       print('Error during path migration: $e');
+    }
+  }
+
+  // アイコンパスを相対パスに変換するマイグレーション処理
+  Future<void> _migrateIconPathsToRelative(Database db) async {
+    try {
+      final docsPath = await getDocumentsPath();
+      
+      // すべてのTalksレコードを取得
+      final talks = await db.query('Talks');
+      
+      for (var talk in talks) {
+        final iconPath = talk['icon_path'] as String?;
+        
+        if (iconPath != null && iconPath.isNotEmpty && !iconPath.startsWith('assets/')) {
+          String newIconPath = iconPath;
+          
+          // 絶対パスを相対パスに変換
+          if (iconPath.startsWith(docsPath)) {
+            newIconPath = iconPath.substring(docsPath.length + 1);
+          } else if (iconPath.startsWith('/')) {
+            // 異なるアプリケーションパスの場合、ファイル名のみを保持
+            final fileName = iconPath.split('/').last;
+            final talkName = talk['name'] as String;
+            newIconPath = '$talkName/icons/$fileName';
+          }
+          
+          // データベースを更新
+          if (newIconPath != iconPath) {
+            await db.update(
+              'Talks',
+              {'icon_path': newIconPath},
+              where: 'id = ?',
+              whereArgs: [talk['id']],
+            );
+            print('Migrated icon path for ${talk['name']}: $iconPath -> $newIconPath');
+          }
+        }
+      }
+      
+      print('Successfully migrated icon paths to relative format');
+    } catch (e) {
+      print('Error during icon path migration: $e');
     }
   }
 

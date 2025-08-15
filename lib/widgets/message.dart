@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'inline_image.dart';
 import 'inline_video.dart';
@@ -80,7 +81,9 @@ class Message extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(10.0),
           child: CircleAvatar(
-            backgroundImage: AssetImage(avatarAssetPath),
+            backgroundImage: avatarAssetPath.startsWith('assets/')
+                ? AssetImage(avatarAssetPath) as ImageProvider
+                : FileImage(File(avatarAssetPath)),
             radius: 20,
           ),
         ),

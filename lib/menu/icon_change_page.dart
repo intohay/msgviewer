@@ -28,11 +28,17 @@ class _IconChangePageState extends State<IconChangePage> {
 
   Future<String> _saveImageLocally(String originalPath) async {
     final directory = await getApplicationDocumentsDirectory();
-    final localPath = '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.png';
+    // 相対パスで保存（トーク名/icons/タイムスタンプ.png）
+    final relativePath = '${widget.talkName}/icons/${DateTime.now().millisecondsSinceEpoch}.png';
+    final localPath = '${directory.path}/$relativePath';
+    
+    // ディレクトリが存在しない場合は作成
     final File localFile = File(localPath);
+    await localFile.parent.create(recursive: true);
+    
     await File(originalPath).copy(localPath); // コピーして保存
-    print("iconPath: $iconPath");
-    return localPath;
+    print("Saved icon to relative path: $relativePath");
+    return relativePath; // 相対パスを返す
   }
 
   Future<void> _pickImage() async {
@@ -40,13 +46,18 @@ class _IconChangePageState extends State<IconChangePage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      final savedPath = await _saveImageLocally(pickedFile.path);
-      await DatabaseHelper().setIconPath(widget.talkName, savedPath);
+      final savedRelativePath = await _saveImageLocally(pickedFile.path);
+      await DatabaseHelper().setIconPath(widget.talkName, savedRelativePath);
+      
+      // UIには絶対パスを設定
+      final directory = await getApplicationDocumentsDirectory();
+      final absolutePath = '${directory.path}/$savedRelativePath';
+      
       setState(() {
-        iconPath = savedPath;
+        iconPath = absolutePath;
         print("iconPath: $iconPath");
       });
-      widget.onIconChanged(savedPath); // アイコン変更を通知
+      widget.onIconChanged(absolutePath); // 絶対パスで通知
     }
   }
 

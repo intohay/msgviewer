@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'talk_page.dart';
 import 'utils/database_helper.dart';
 import 'utils/file_utils.dart';
@@ -28,13 +29,37 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadTalkPages() async {
     final talks = await dbHelper.getAllTalks();
     final List<Map<String, dynamic>> talksWithScrollIndex = [];
+    final directory = await getApplicationDocumentsDirectory();
     
     for (var talk in talks) {
       final scrollIndex = await dbHelper.getScrollIndex(talk['name']);
       print('HomePage: Loading scroll index $scrollIndex for ${talk['name']}');
+      
+      // アイコンパスの処理
+      String iconPath = 'assets/images/icon.png';
+      final savedIconPath = talk['icon_path'] as String?;
+      
+      if (savedIconPath != null && !savedIconPath.startsWith('assets/')) {
+        // 既に絶対パスの場合
+        if (savedIconPath.startsWith('/')) {
+          // ファイルの存在確認
+          if (await File(savedIconPath).exists()) {
+            iconPath = savedIconPath;
+          }
+        } else {
+          // 相対パスの場合、絶対パスに変換
+          final absolutePath = '${directory.path}/$savedIconPath';
+          if (await File(absolutePath).exists()) {
+            iconPath = absolutePath;
+          }
+        }
+      } else if (savedIconPath != null) {
+        iconPath = savedIconPath; // assets/から始まる場合
+      }
+      
       talksWithScrollIndex.add({
         'name': talk['name'],
-        'iconPath': talk['icon_path'] ?? 'assets/images/icon.png',
+        'iconPath': iconPath,
         'savedState': {
           'scrollIndex': scrollIndex,
         },

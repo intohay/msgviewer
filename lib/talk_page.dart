@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -105,9 +107,41 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadIcon() async {
-    final path = await dbHelper.getIconPath(widget.name ?? '');
+    final savedPath = await dbHelper.getIconPath(widget.name ?? '');
+    print('Loading icon for ${widget.name}: savedPath = $savedPath');
+    
+    if (savedPath != null && !savedPath.startsWith('assets/')) {
+      // 相対パスを絶対パスに変換
+      final directory = await getApplicationDocumentsDirectory();
+      String absolutePath;
+      
+      // 既に絶対パスの場合（古いデータ）
+      if (savedPath.startsWith('/')) {
+        absolutePath = savedPath;
+        print('Using absolute path: $absolutePath');
+      } else {
+        // 相対パスの場合
+        absolutePath = '${directory.path}/$savedPath';
+        print('Converted relative path to absolute: $absolutePath');
+      }
+      
+      // ファイルの存在確認
+      final file = File(absolutePath);
+      if (await file.exists()) {
+        print('Icon file exists, setting iconPath: $absolutePath');
+        setState(() {
+          iconPath = absolutePath;
+        });
+        return;
+      } else {
+        print('Icon file not found: $absolutePath, using default');
+      }
+    }
+    
+    // デフォルトアイコンを使用
+    print('Using default icon for ${widget.name}');
     setState(() {
-      iconPath = path ?? "assets/images/icon.png";
+      iconPath = "assets/images/icon.png";
     });
   }
 
