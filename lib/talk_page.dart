@@ -11,6 +11,8 @@ import 'menu/favorites_page.dart';
 import 'menu/media_page.dart';
 import 'utils/helper.dart';
 import 'menu/text_search_page.dart';
+import 'menu/background_settings_page.dart';
+import 'widgets/background_wrapper.dart';
 
 class TalkPage extends StatefulWidget {
   final Map<String, dynamic>? savedState;
@@ -362,9 +364,11 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          ScrollablePositionedList.separated(
+      body: BackgroundWrapper(
+        talkName: widget.name ?? '',
+        child: Stack(
+          children: [
+            ScrollablePositionedList.separated(
             reverse: true,
             initialScrollIndex: messages.isNotEmpty 
                 ? (widget.savedState?["scrollIndex"] ?? 0).clamp(0, messages.length - 1)
@@ -430,7 +434,8 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                 child: CircularProgressIndicator(),
               ),
             ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: !isAtBottom ? FloatingActionButton(
         onPressed: () {
@@ -486,6 +491,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
               _buildMenuItem(Icons.image, "メディア一覧", () => _onMenuTap("Media")),
               _buildMenuItem(Icons.account_circle, "アイコン", () => _onMenuTap("Icon")),
               _buildMenuItem(Icons.edit, "呼ばれたい名前", () => _onMenuTap("Call me")),
+              _buildMenuItem(Icons.wallpaper, "背景画像", () => _onMenuTap("Background")),
               _buildMenuItem(Icons.drive_file_rename_outline, "トーク名を編集", () => _onMenuTap("Edit Name")),
             ],
           ),
@@ -565,6 +571,18 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       
       case "Edit Name":
         _showEditNameDialog();
+        break;
+
+      case "Background":
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BackgroundSettingsPage(talkName: widget.name ?? ''),
+          ),
+        ).then((_) {
+          // 背景設定画面から戻ってきたときに画面を再描画
+          setState(() {});
+        });
         break;
 
       case "Text Search":

@@ -128,7 +128,7 @@ class Message extends StatelessWidget {
                       horizontal: 15.0,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: Colors.grey.shade200.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Column(
@@ -149,7 +149,7 @@ class Message extends StatelessWidget {
                     child: CustomPaint(
                       size: const Size(12, 10),
                       painter: _BubbleTailPainter(
-                        color: Colors.grey.shade200,
+                        color: Colors.grey.shade200.withValues(alpha: 0.9),
                       ),
                     ),
                   ),
