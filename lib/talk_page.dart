@@ -42,6 +42,9 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   
   /// 現在保持している中で最も新しいメッセージID (IDが最大)
   int? newestIdSoFar;
+  
+  /// 最下部にいるかどうかを管理する状態変数
+  bool isAtBottom = true;
 
   @override
   void initState() {
@@ -285,6 +288,14 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     // reverse:true なので index=0 が画面の最"上"(最新)、
     // index=(messages.length-1) が画面の最"下"(最古)
     
+    // 最下部にいるかどうかを判定（index=0が表示されているかどうか）
+    final atBottom = minIndex == 0;
+    if (isAtBottom != atBottom) {
+      setState(() {
+        isAtBottom = atBottom;
+      });
+    }
+    
     // 先頭(最新)付近に来たら新しいメッセージをロード
     if (minIndex <= 1 && newestIdSoFar != null) {
       _loadNewerMessages();
@@ -362,6 +373,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
             itemPositionsListener: _itemPositionsListener,
             itemCount: messages.length,
             separatorBuilder: (_, __) => const SizedBox(height: 16),
+            padding: const EdgeInsets.only(bottom: 80), // 最下部にマージンを追加
             itemBuilder: (context, index) {
               final row = messages[index];
               final isFavorite = (row['is_favorite'] == 1);
@@ -420,7 +432,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: !isAtBottom ? FloatingActionButton(
         onPressed: () {
           if (messages.isNotEmpty) {
             _itemScrollController.scrollTo(
@@ -431,7 +443,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
           }
         },
         child: const Icon(Icons.arrow_downward),
-      ),
+      ) : null,
     );
   }
 
