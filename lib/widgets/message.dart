@@ -145,7 +145,7 @@ class Message extends StatelessWidget {
     );
   }
 
-  /// URLを検出してリンク化する
+  /// URLを検出してリンク化し、検索キーワードをハイライトする
   Widget _buildMessageText(String text) {
     final RegExp linkRegex = RegExp(
       r'((https?:\/\/)?([\w-]+(\.[\w-]+)+(:\d+)?(\/\S*)?))',
@@ -157,9 +157,10 @@ class Message extends StatelessWidget {
     int lastMatchEnd = 0;
 
     for (final match in matches) {
-      // 通常テキスト部分
+      // 通常テキスト部分（ハイライト処理を追加）
       if (match.start > lastMatchEnd) {
-        spans.add(TextSpan(text: text.substring(lastMatchEnd, match.start)));
+        final normalText = text.substring(lastMatchEnd, match.start);
+        spans.addAll(_buildHighlightedSpans(normalText));
       }
 
       // URL部分
@@ -183,9 +184,10 @@ class Message extends StatelessWidget {
       lastMatchEnd = match.end;
     }
 
-    // 残りの通常テキスト
+    // 残りの通常テキスト（ハイライト処理を追加）
     if (lastMatchEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastMatchEnd)));
+      final remainingText = text.substring(lastMatchEnd);
+      spans.addAll(_buildHighlightedSpans(remainingText));
     }
 
     return RichText(
@@ -194,6 +196,50 @@ class Message extends StatelessWidget {
         children: spans,
       ),
     );
+  }
+
+  /// 検索キーワードをハイライトしたTextSpanのリストを返す
+  List<InlineSpan> _buildHighlightedSpans(String text) {
+    if (highlightQuery == null || highlightQuery!.isEmpty) {
+      return [TextSpan(text: text)];
+    }
+
+    final List<InlineSpan> spans = [];
+    final String lowerText = text.toLowerCase();
+    final String lowerQuery = highlightQuery!.toLowerCase();
+    
+    int currentIndex = 0;
+    int foundIndex = lowerText.indexOf(lowerQuery, currentIndex);
+    
+    while (foundIndex != -1) {
+      // ハイライト前のテキスト
+      if (foundIndex > currentIndex) {
+        spans.add(TextSpan(
+          text: text.substring(currentIndex, foundIndex),
+        ));
+      }
+      
+      // ハイライトするテキスト
+      spans.add(TextSpan(
+        text: text.substring(foundIndex, foundIndex + highlightQuery!.length),
+        style: const TextStyle(
+          backgroundColor: Colors.yellow,
+          fontWeight: FontWeight.bold,
+        ),
+      ));
+      
+      currentIndex = foundIndex + highlightQuery!.length;
+      foundIndex = lowerText.indexOf(lowerQuery, currentIndex);
+    }
+    
+    // 残りのテキスト
+    if (currentIndex < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(currentIndex),
+      ));
+    }
+    
+    return spans;
   }
 
   String _datetimeConverter(DateTime datetime) {
