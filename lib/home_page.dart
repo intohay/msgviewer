@@ -77,11 +77,22 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
                 if (result != null && result is Map<String, dynamic>) {
-                  // await dbHelper.setIconPath(talk['name'], result['iconPath']);
-                  // スクロール位置をデータベースに保存
-                  if (result['scrollIndex'] != null) {
-                    print('HomePage: Saving scroll index ${result['scrollIndex']} for ${talk['name']}');
-                    await dbHelper.setScrollIndex(talk['name'], result['scrollIndex']);
+                  // 名前が変更された場合の処理
+                  if (result['nameChanged'] == true) {
+                    setState(() {
+                      talkPages[index]['name'] = result['newName'];
+                    });
+                    // スクロール位置を新しい名前で保存
+                    if (result['scrollIndex'] != null) {
+                      await dbHelper.setScrollIndex(result['newName'], result['scrollIndex']);
+                    }
+                  } else {
+                    // 通常の処理
+                    // スクロール位置をデータベースに保存
+                    if (result['scrollIndex'] != null) {
+                      print('HomePage: Saving scroll index ${result['scrollIndex']} for ${talk['name']}');
+                      await dbHelper.setScrollIndex(talk['name'], result['scrollIndex']);
+                    }
                   }
                   setState(() {
                     talkPages[index]['savedState'] = result; 
@@ -89,40 +100,110 @@ class _HomePageState extends State<HomePage> {
                   });
                 }
               },
-              // 長押しで削除確認ダイアログを表示
+              // 長押しでメニューを表示
               onLongPress: () async {
-                final confirm = await showDialog<bool>(
+                final action = await showDialog<String>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('トークの削除'),
-                    content: const Text('本当にこのトークを削除しますか？\n(関連するファイルも削除されます)'),
+                    title: Text(talk['name'] ?? ''),
+                    content: const Text('操作を選択してください'),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('キャンセル'),
+                        onPressed: () => Navigator.pop(context, 'edit'),
+                        child: const Text('名前を編集'),
                       ),
                       TextButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () => Navigator.pop(context, 'delete'),
                         child: const Text('削除'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, null),
+                        child: const Text('キャンセル'),
                       ),
                     ],
                   ),
                 );
-                if (confirm == true) {
-                  try {
-                    // データベース上のレコードおよび関連ファイルを削除する処理
-                    await dbHelper.deleteTalk(talk['name']);
-                    // ホーム画面から対象のトークを削除
-                    setState(() {
-                      talkPages.removeAt(index);
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('トークが削除されました')),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('削除中にエラーが発生しました: $e')),
-                    );
+                
+                if (action == 'edit') {
+                  // 名前編集ダイアログを表示
+                  final TextEditingController nameController = TextEditingController(text: talk['name']);
+                  final newName = await showDialog<String>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('トーク名を編集'),
+                      content: TextField(
+                        controller: nameController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          labelText: '新しい名前',
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, null),
+                          child: const Text('キャンセル'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, nameController.text),
+                          child: const Text('保存'),
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  if (newName != null && newName.isNotEmpty && newName != talk['name']) {
+                    try {
+                      // データベースでトーク名を更新
+                      await dbHelper.updateTalkName(talk['name'], newName);
+                      // UIを更新
+                      setState(() {
+                        talkPages[index]['name'] = newName;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('トーク名を「$newName」に変更しました')),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('名前の変更中にエラーが発生しました: $e')),
+                      );
+                    }
+                  }
+                } else if (action == 'delete') {
+                  // 削除確認ダイアログを表示
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('トークの削除'),
+                      content: const Text('本当にこのトークを削除しますか？\n(関連するファイルも削除されます)'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('キャンセル'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('削除'),
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  if (confirm == true) {
+                    try {
+                      // データベース上のレコードおよび関連ファイルを削除する処理
+                      await dbHelper.deleteTalk(talk['name']);
+                      // ホーム画面から対象のトークを削除
+                      setState(() {
+                        talkPages.removeAt(index);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('トークが削除されました')),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('削除中にエラーが発生しました: $e')),
+                      );
+                    }
                   }
                 }
               },

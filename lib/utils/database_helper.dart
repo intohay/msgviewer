@@ -468,6 +468,32 @@ class DatabaseHelper {
     return 0;
   }
 
+  // トーク名を更新
+  Future<void> updateTalkName(String oldName, String newName) async {
+    final db = await database;
+    
+    // トランザクションを使用して、関連するすべてのテーブルを更新
+    await db.transaction((txn) async {
+      // Talksテーブルの名前を更新
+      await txn.update(
+        'Talks',
+        {'name': newName},
+        where: 'name = ?',
+        whereArgs: [oldName],
+      );
+      
+      // Messagesテーブルの名前を更新
+      await txn.update(
+        'Messages',
+        {'name': newName},
+        where: 'name = ?',
+        whereArgs: [oldName],
+      );
+    });
+    
+    print('トーク名を "$oldName" から "$newName" に更新しました。');
+  }
+
   Future<void> updateFavoriteStatus(int messageId, bool isFavorite) async {
     final db = await database;
     await db.update(

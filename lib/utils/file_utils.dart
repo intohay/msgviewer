@@ -29,19 +29,34 @@ class FileManager {
   /// ZIPを解凍してデータベースに保存する
   Future<String?> processZip(String zipFilePath) async {
     final directory = await getApplicationDocumentsDirectory(); // アプリのドキュメントディレクトリ
-    // ZIPファイル名からフォルダ名を生成（例：sample.zip → sample）
-    final rootFolderName = p.basenameWithoutExtension(zipFilePath); // hoge岸piyoり.zip -> hoge岸piyoり
-
-
+    // ZIPファイル名からトーク名を生成（例：sample.zip → sample）
+    final talkName = p.basenameWithoutExtension(zipFilePath); // これがトーク名として使用される
+    
     // InputFileStream を用いて ZIP をストリーム処理し、decodeStream で Archive を取得
     final inputStream = InputFileStream(zipFilePath);
     final archive = ZipDecoder().decodeStream(inputStream);
-
+    
+    // アーカイブ内の実際のフォルダ名を取得
+    String? actualFolderName;
+    for (final file in archive) {
+      if (file.name.contains('/')) {
+        actualFolderName = file.name.split('/').first;
+        break;
+      }
+    }
+    
+    // 実際のフォルダ名がない場合はトーク名を使用
+    if (actualFolderName == null) {
+      actualFolderName = talkName;
+    }
+    
     // extractArchiveToDisk で Archive の内容を extractPath に直接展開
     await extractArchiveToDisk(archive, directory.path);
-
+    
+    // 展開先ディレクトリ（実際のフォルダ名を使用）
+    final extractPath = p.join(directory.path, actualFolderName);
+    
     // 展開先ディレクトリ内から CSV ファイルを検索
-    final extractPath = p.join(directory.path, rootFolderName); // アプリのドキュメントディレクトリ/hoge岸piyoり
     final csvFiles = Directory(extractPath)
         .listSync(recursive: true)
         .where((entity) => entity is File && entity.path.endsWith('.csv'))
@@ -49,9 +64,9 @@ class FileManager {
 
     if (csvFiles.isNotEmpty) {
       return await _processWithCsvFromDisk(
-          extractPath, (csvFiles.first as File).path, rootFolderName);
+          extractPath, (csvFiles.first as File).path, talkName); // トーク名を渡す
     } else {
-      return await _processWithoutCsvFromDisk(extractPath, rootFolderName);
+      return await _processWithoutCsvFromDisk(extractPath, talkName); // トーク名を渡す
     }
   }
 
@@ -132,8 +147,15 @@ class FileManager {
       }
     }
 
+    // CSV内の名前をtalkNameに置き換える
+    for (var row in fields) {
+      if (row.length > 1) {
+        row[1] = rootFolderName; // トーク名として使用
+      }
+    }
+    
     await dbHelper.insertData(fields);
-    return fields.isNotEmpty ? fields[0][1] : null;
+    return rootFolderName; // トーク名を返す
   }
 
   /// CSV が存在しない場合の処理（ディスク上のファイルを利用）

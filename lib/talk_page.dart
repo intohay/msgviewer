@@ -474,6 +474,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
               _buildMenuItem(Icons.image, "メディア一覧", () => _onMenuTap("Media")),
               _buildMenuItem(Icons.account_circle, "アイコン", () => _onMenuTap("Icon")),
               _buildMenuItem(Icons.edit, "呼ばれたい名前", () => _onMenuTap("Call me")),
+              _buildMenuItem(Icons.drive_file_rename_outline, "トーク名を編集", () => _onMenuTap("Edit Name")),
             ],
           ),
         );
@@ -549,6 +550,10 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       case "Date Search":
         _showDateSearchCalendar();
         break;
+      
+      case "Edit Name":
+        _showEditNameDialog();
+        break;
 
       case "Text Search":
         Navigator.push(
@@ -569,6 +574,73 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
         break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$action tapped")));
+    }
+  }
+
+  int _getCurrentScrollIndex() {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      // 表示中のアイテムの中で最も上にあるものを取得
+      return positions
+          .map((position) => position.index)
+          .reduce((value, element) => value < element ? value : element);
+    }
+    return 0;
+  }
+
+  void _showEditNameDialog() async {
+    final TextEditingController nameController = TextEditingController(text: widget.name);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('トーク名を編集'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '新しい名前',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, nameController.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    
+    if (newName != null && newName.isNotEmpty && newName != widget.name) {
+      try {
+        // データベースでトーク名を更新
+        await dbHelper.updateTalkName(widget.name ?? '', newName);
+        
+        // 画面を更新して新しい名前を反映
+        if (mounted) {
+          // ホーム画面に戻る（新しい名前で再度開く必要がある）
+          Navigator.pop(context, {
+            'nameChanged': true,
+            'oldName': widget.name,
+            'newName': newName,
+            'scrollIndex': _getCurrentScrollIndex(),
+            'iconPath': iconPath ?? "assets/images/icon.png",
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('トーク名を「$newName」に変更しました')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('名前の変更中にエラーが発生しました: $e')),
+          );
+        }
+      }
     }
   }
 
