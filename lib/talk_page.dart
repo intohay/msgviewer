@@ -640,6 +640,14 @@ class _CalendarBottomSheetState extends State<_CalendarBottomSheet> {
         });
         widget.onDateSelected(selectedDay);
       },
+      // Remove the format button
+      availableCalendarFormats: const {
+        CalendarFormat.month: 'Month',
+      },
+      headerStyle: const HeaderStyle(
+        formatButtonVisible: false,
+        titleCentered: true,
+      ),
     );
   }
 }
