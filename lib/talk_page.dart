@@ -54,7 +54,11 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     if (widget.savedState?["messages"]?.isNotEmpty ?? false) {
       // 1) savedState["messages"] はイミュータブルかもしれないので map(...).toList() でコピー
       final savedList = widget.savedState!["messages"] as List;
-      messages = savedList.map((row) => Map<String, dynamic>.from(row)).toList();
+      final tempMessages = savedList.map((row) => Map<String, dynamic>.from(row)).toList();
+      
+      // パス変換を適用
+      _convertMessagesPathsAsync(tempMessages);
+      
       oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
 
       iconPath = widget.savedState?["iconPath"] ?? "assets/images/icon.png";
@@ -133,19 +137,21 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     }
   }
 
+  // savedStateのメッセージのパスを変換
+  Future<void> _convertMessagesPathsAsync(List<Map<String, dynamic>> tempMessages) async {
+    // パス変換を適用
+    final convertedMessages = await dbHelper.convertPathsToAbsolute(tempMessages);
+    setState(() {
+      messages = convertedMessages;
+    });
+  }
+
   /// 全メッセージをロードして指定インデックスにジャンプ
   Future<void> _loadAllMessagesAndJump(int savedIndex) async {
     setState(() => isLoading = true);
 
-    // 全メッセージを取得
-    final db = await dbHelper.database;
-    final messagesRaw = await db.query(
-      'Messages',
-      where: 'name = ?',
-      whereArgs: [widget.name],
-      orderBy: 'id DESC',
-    );
-    
+    // 全メッセージを取得（パス変換も含む）
+    final messagesRaw = await dbHelper.getAllMessagesForTalk(widget.name);
     final loadedMessages = messagesRaw.map((row) => Map<String, dynamic>.from(row)).toList();
 
     setState(() {

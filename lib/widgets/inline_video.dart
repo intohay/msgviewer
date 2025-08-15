@@ -44,20 +44,35 @@ class _InlineVideoState extends State<InlineVideo> {
   Future<void> _initializeDisplay() async {
     final thumbFile = File(widget.thumbnailPath);
     if (await thumbFile.exists()) {
-      final bytes = await thumbFile.readAsBytes();
-      ui.decodeImageFromList(bytes, (ui.Image image) {
-        setState(() {
-          _aspectRatio = image.width / image.height;
-          _thumbnailPath = widget.thumbnailPath;
-          _isLoading = false;
+      try {
+        final bytes = await thumbFile.readAsBytes();
+        ui.decodeImageFromList(bytes, (ui.Image image) {
+          if (mounted) {
+            setState(() {
+              _aspectRatio = image.width / image.height;
+              _thumbnailPath = widget.thumbnailPath;
+              _isLoading = false;
+            });
+          }
         });
-      });
+      } catch (e) {
+        print('InlineVideo: Error loading thumbnail: $e');
+        if (mounted) {
+          setState(() {
+            _thumbnailPath = null;
+            _isLoading = false;
+          });
+        }
+      }
     } else {
       // サムネイルがない場合
-      setState(() {
-        _thumbnailPath = widget.thumbnailPath;
-        _isLoading = false;
-      });
+      print('InlineVideo: Thumbnail not found at: ${widget.thumbnailPath}');
+      if (mounted) {
+        setState(() {
+          _thumbnailPath = null;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -104,10 +119,27 @@ class _InlineVideoState extends State<InlineVideo> {
       // 正方形の場合は中央クロップ (BoxFit.cover)
       // そうでない場合は従来通り (BoxFit.contain)
       final boxFit = widget.isSquare ? BoxFit.cover : BoxFit.contain;
-      thumbnailWidget = Image.file(File(_thumbnailPath!), fit: boxFit);
+      thumbnailWidget = Image.file(
+        File(_thumbnailPath!),
+        fit: boxFit,
+        errorBuilder: (context, error, stackTrace) {
+          print('InlineVideo: Error displaying thumbnail: $error');
+          return Container(
+            color: Colors.grey[800],
+            child: const Center(
+              child: Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+            ),
+          );
+        },
+      );
     } else {
       // サムネイルが無い場合は黒背景
-      thumbnailWidget = Container(color: Colors.black);
+      thumbnailWidget = Container(
+        color: Colors.grey[800],
+        child: const Center(
+          child: Icon(Icons.videocam_off, size: 48, color: Colors.grey),
+        ),
+      );
     }
 
     // 正方形表示 or 従来の高さ250px表示
@@ -149,6 +181,15 @@ class _InlineVideoState extends State<InlineVideo> {
 
     return GestureDetector(
       onTap: () {
+        // ビデオファイルが存在するかチェック
+        final videoFile = File(widget.videoPath);
+        if (!videoFile.existsSync()) {
+          print('InlineVideo: Video file not found at: ${widget.videoPath}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('動画ファイルが見つかりません')),
+          );
+          return;
+        }
         // フルスクリーン再生をオーバーレイ表示
         _showOverlay(context, VideoPlayerPage(videoPath: widget.videoPath));
       },
@@ -178,11 +219,20 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(File(widget.videoPath))
+    final videoFile = File(widget.videoPath);
+    if (!videoFile.existsSync()) {
+      print('VideoPlayerPage: Video file not found at: ${widget.videoPath}');
+      return;
+    }
+    _controller = VideoPlayerController.file(videoFile)
       ..initialize().then((_) {
-        setState(() {});
-        _controller.play();
-        _controller.setLooping(true);
+        if (mounted) {
+          setState(() {});
+          _controller.play();
+          _controller.setLooping(true);
+        }
+      }).catchError((error) {
+        print('VideoPlayerPage: Error initializing video: $error');
       });
   }
 

@@ -63,6 +63,19 @@ class _InlineImageState extends State<InlineImage> {
 
     // タップで拡大表示する用の画像
     final fullImage = File(widget.imagePath);
+    
+    // ファイルが存在するかチェック
+    final displayFile = File(displayPath);
+    if (!displayFile.existsSync()) {
+      print('InlineImage: File not found at path: $displayPath');
+      return Container(
+        height: 100,
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+        ),
+      );
+    }
 
     // 画像本体
     Widget imageWidget;
@@ -71,8 +84,17 @@ class _InlineImageState extends State<InlineImage> {
       imageWidget = AspectRatio(
         aspectRatio: 1.0, // 正方形
         child: Image.file(
-          File(displayPath),
+          displayFile,
           fit: BoxFit.cover, // 埋め尽くしてはみ出した部分をクロップ
+          errorBuilder: (context, error, stackTrace) {
+            print('InlineImage: Error loading image: $error');
+            return Container(
+              color: Colors.grey[300],
+              child: const Center(
+                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+              ),
+            );
+          },
         ),
       );
     } else {
@@ -80,15 +102,27 @@ class _InlineImageState extends State<InlineImage> {
       imageWidget = ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 300),
         child: Image.file(
-          File(displayPath),
+          displayFile,
           fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            print('InlineImage: Error loading image: $error');
+            return Container(
+              height: 100,
+              color: Colors.grey[300],
+              child: const Center(
+                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+              ),
+            );
+          },
         ),
       );
     }
 
     return GestureDetector(
       onTap: () {
-        _showOverlay(context, FileImage(fullImage));
+        if (fullImage.existsSync()) {
+          _showOverlay(context, FileImage(fullImage));
+        }
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0),

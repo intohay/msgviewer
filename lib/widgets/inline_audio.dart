@@ -22,7 +22,17 @@ class _InlineAudioState extends State<InlineAudio> {
   void initState() {
     super.initState();
     _audioPlayer = AudioPlayer();
-    _audioPlayer.setFilePath(widget.audioPath);
+    
+    // ファイルが存在するかチェック
+    final audioFile = File(widget.audioPath);
+    if (audioFile.existsSync()) {
+      _audioPlayer.setFilePath(widget.audioPath).catchError((error) {
+        print('InlineAudio: Error loading audio file: $error');
+        return null;
+      });
+    } else {
+      print('InlineAudio: Audio file not found at: ${widget.audioPath}');
+    }
 
     _audioPlayer.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
@@ -38,10 +48,27 @@ class _InlineAudioState extends State<InlineAudio> {
   }
 
   void _togglePlayback() {
+    // ファイルが存在するかチェック
+    final audioFile = File(widget.audioPath);
+    if (!audioFile.existsSync()) {
+      print('InlineAudio: Cannot play - file not found at: ${widget.audioPath}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('音声ファイルが見つかりません')),
+      );
+      return;
+    }
+    
     if (_isPlaying) {
       _audioPlayer.pause();
     } else {
-      _audioPlayer.play();
+      _audioPlayer.play().catchError((error) {
+        print('InlineAudio: Error playing audio: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('音声の再生に失敗しました')),
+          );
+        }
+      });
     }
     setState(() {
       _isPlaying = !_isPlaying;

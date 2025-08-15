@@ -15,9 +15,80 @@ class DatabaseHelper {
     return _database!;
   }
 
+  // Documents ディレクトリのパスを取得（キャッシュなし - 毎回取得）
+  Future<String> getDocumentsPath() async {
+    // キャッシュを使わず、毎回新しくパスを取得
+    final docsPath = (await getApplicationDocumentsDirectory()).path;
+    print('Documents path: $docsPath');
+    return docsPath;
+  }
+
+  // 絶対パスから相対パスに変換（保存時に使用）
+  Future<String?> toRelativePath(String? absolutePath) async {
+    if (absolutePath == null || absolutePath.isEmpty) return null;
+    final docsPath = await getDocumentsPath();
+    if (absolutePath.startsWith(docsPath)) {
+      return absolutePath.substring(docsPath.length + 1); // +1 for the separator
+    }
+    return absolutePath; // 既に相対パスの場合はそのまま返す
+  }
+
+  // 相対パスから絶対パスに変換（読み込み時に使用）
+  Future<String?> toAbsolutePath(String? relativePath) async {
+    if (relativePath == null || relativePath.isEmpty) return null;
+    
+    final docsPath = await getDocumentsPath();
+    
+    // 既に正しい絶対パスの場合はそのまま返す
+    if (relativePath.startsWith(docsPath)) {
+      return relativePath;
+    }
+    
+    // 古い絶対パス（別のDocumentsパス）の場合は、相対部分だけ取り出して新しいパスに結合
+    if (relativePath.startsWith('/')) {
+      // 古い絶対パスから相対パス部分を抽出
+      final parts = relativePath.split('/Documents/');
+      if (parts.length > 1) {
+        // Documents/以降の部分を取得
+        final relativePartOnly = parts[1];
+        print('Converting old absolute path to new: $relativePath -> $docsPath/$relativePartOnly');
+        return join(docsPath, relativePartOnly);
+      }
+      // それ以外の絶対パスはそのまま返す（エラーケース）
+      return relativePath;
+    }
+    
+    // 相対パスの場合は新しいDocumentsパスと結合
+    return join(docsPath, relativePath);
+  }
+
+  // メッセージリストのパスを絶対パスに変換
+  Future<List<Map<String, dynamic>>> convertPathsToAbsolute(List<Map<String, dynamic>> messages) async {
+    final List<Map<String, dynamic>> result = [];
+    for (var message in messages) {
+      final Map<String, dynamic> convertedMessage = Map.from(message);
+      final originalPath = message['filepath'];
+      final convertedPath = await toAbsolutePath(message['filepath']);
+      
+      // デバッグログ
+      if (originalPath != null) {
+        if (originalPath != convertedPath) {
+          print('Path conversion: $originalPath -> $convertedPath');
+        } else if (!originalPath.startsWith('/')) {
+          print('WARNING: Path not converted (still relative): $originalPath');
+        }
+      }
+      
+      convertedMessage['filepath'] = convertedPath;
+      convertedMessage['thumb_filepath'] = await toAbsolutePath(message['thumb_filepath']);
+      result.add(convertedMessage);
+    }
+    return result;
+  }
+
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 4, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 5, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -65,14 +136,67 @@ class DatabaseHelper {
           }
         }
       }
+      if (oldVersion < 5) {
+        print('Upgrading to version 5: Converting absolute paths to relative paths');
+        // 既存のメッセージのパスを絶対パスから相対パスに変換
+        await _migratePathsToRelative(db);
+      }
     });
   }
 
+  // 既存データのパスを絶対パスから相対パスに変換するマイグレーション処理
+  Future<void> _migratePathsToRelative(Database db) async {
+    try {
+      final docsPath = await getDocumentsPath();
+      
+      // すべてのメッセージを取得
+      final messages = await db.query('Messages');
+      
+      for (var message in messages) {
+        bool needsUpdate = false;
+        String? newFilePath = message['filepath'] as String?;
+        String? newThumbPath = message['thumb_filepath'] as String?;
+        
+        // filepathを相対パスに変換
+        if (newFilePath != null && newFilePath.startsWith(docsPath)) {
+          newFilePath = newFilePath.substring(docsPath.length + 1);
+          needsUpdate = true;
+        }
+        
+        // thumb_filepathを相対パスに変換
+        if (newThumbPath != null && newThumbPath.startsWith(docsPath)) {
+          newThumbPath = newThumbPath.substring(docsPath.length + 1);
+          needsUpdate = true;
+        }
+        
+        // 更新が必要な場合のみデータベースを更新
+        if (needsUpdate) {
+          await db.update(
+            'Messages',
+            {
+              'filepath': newFilePath,
+              'thumb_filepath': newThumbPath,
+            },
+            where: 'id = ?',
+            whereArgs: [message['id']],
+          );
+        }
+      }
+      
+      print('Successfully migrated paths to relative format');
+    } catch (e) {
+      print('Error during path migration: $e');
+    }
+  }
 
   Future<void> insertData(List<List<dynamic>> csvData) async {
     final db = await database;
     for (var row in csvData) {
       // print(row[0]);
+      // ファイルパスを相対パスに変換して保存
+      final relativePath = await toRelativePath(row[4]);
+      final relativeThumbPath = await toRelativePath(row[5]);
+      
       await db.insert(
         'Messages',
         {
@@ -80,8 +204,8 @@ class DatabaseHelper {
           'name': row[1],
           'date': formatDateTimeForDatabase(row[2]),
           'text': row[3],
-          'filepath': row[4],
-          'thumb_filepath': row[5], // Added thumb_path in the insertData
+          'filepath': relativePath,
+          'thumb_filepath': relativeThumbPath,
           'is_favorite': row[6] == 'TRUE' ? 1 : 0  // Adjusted index for is_favorite
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
@@ -94,7 +218,7 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getMessages(String? name, int offset, int limit) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: name != null ? 'name = ?' : null,
       whereArgs: name != null ? [name] : null,
@@ -102,73 +226,92 @@ class DatabaseHelper {
       offset: offset,
       orderBy: 'id DESC'  // 最新のデータから取得する場合
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   /// (A) 最新から limit 件だけ取得 (id DESC)
   Future<List<Map<String, dynamic>>> getNewestMessages(String? name, int limit) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: 'name = ?',
       whereArgs: [name],
       orderBy: 'id DESC',
       limit: limit,
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   /// (B) 指定した id より古いメッセージを limit 件 (id DESC)
   Future<List<Map<String, dynamic>>> getOlderMessages(String? name, int olderThanId, int limit) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: 'name = ? AND id < ?',
       whereArgs: [name, olderThanId],
       orderBy: 'id DESC',
       limit: limit,
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<List<Map<String, dynamic>>> getNewerMessages(String? name, int currentMaxId, int limit) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: 'name = ? AND id > ?',
       whereArgs: [name, currentMaxId],
       orderBy: 'id DESC', // 新しい順
       limit: limit,
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<List<Map<String, dynamic>>> getMessagesSinceDate(String? name, DateTime date) async {
     final db = await database;
     // 例: date以上の投稿だけ
-    return await db.rawQuery('''
+    final messages = await db.rawQuery('''
       SELECT * FROM Messages
       WHERE name = ?
         AND date >= ?
       ORDER BY id DESC
     ''', [name, date.toIso8601String()]);
+    return await convertPathsToAbsolute(messages);
   }
 
 
   Future<List<Map<String, dynamic>>> getAllMessages() async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       orderBy: 'id DESC'
     );
+    return await convertPathsToAbsolute(messages);
+  }
+
+  // 特定のトークの全メッセージを取得（パス変換込み）
+  Future<List<Map<String, dynamic>>> getAllMessagesForTalk(String? name) async {
+    final db = await database;
+    final messages = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [name],
+      orderBy: 'id DESC',
+    );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<List<Map<String, dynamic>>> getOlderMessagesById(String? name, int olderThanId, int limit) async {
     final db = await database;
     // id < olderThanId の投稿を id DESC でlimit件
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: 'name = ? AND id < ?',
       whereArgs: [name, olderThanId],
       orderBy: 'id DESC',
       limit: limit,
     );
+    return await convertPathsToAbsolute(messages);
   }
 
 
@@ -319,7 +462,7 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getFavoriteMessages(String name, int offset, int limit) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: 'name = ? AND is_favorite = 1',
       whereArgs: [name],
@@ -327,13 +470,14 @@ class DatabaseHelper {
       limit: limit,
       offset: offset,
     );
+    return await convertPathsToAbsolute(messages);
   }
 
 
     // database_helper.dart (抜粋)
   Future<List<Map<String, dynamic>>> getImageMessages(String name) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: '''
         name = ? 
@@ -345,11 +489,12 @@ class DatabaseHelper {
       whereArgs: [name],
       orderBy: 'date ASC',
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<List<Map<String, dynamic>>> getVideoMessages(String name) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: '''
         name = ? 
@@ -361,11 +506,12 @@ class DatabaseHelper {
       whereArgs: [name],
       orderBy: 'date ASC',
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<List<Map<String, dynamic>>> getAudioMessages(String name) async {
     final db = await database;
-    return await db.query(
+    final messages = await db.query(
       'Messages',
       where: '''
         name = ? 
@@ -377,6 +523,7 @@ class DatabaseHelper {
       whereArgs: [name],
       orderBy: 'date ASC',
     );
+    return await convertPathsToAbsolute(messages);
   }
 
   Future<Map<String, dynamic>?> getClosestMessageToDate(String? name, DateTime date) async {
@@ -426,7 +573,7 @@ class DatabaseHelper {
     ];
     // id DESC でソート (新しいIDが先頭になる)
     combined.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
-    return combined;
+    return await convertPathsToAbsolute(combined);
   }
 
 
@@ -444,7 +591,7 @@ class DatabaseHelper {
       orderBy: 'id DESC', // 新しい順
     );
 
-    return result;
+    return await convertPathsToAbsolute(result);
   }
 
   Future<void> deleteTalk(String talkName) async {
