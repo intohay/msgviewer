@@ -31,6 +31,10 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   List<Map<String, dynamic>> audioList = [];
 
   bool isLoading = true;
+  
+  // ★ TabController
+  late TabController _tabController;
+  int _currentTabIndex = 0;
 
   // ★ オーディオプレイヤー関連
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -47,6 +51,18 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   void initState() {
     super.initState();
     _loadMedia();
+    
+    // ★ TabController の初期化
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+      // 音声タブ(index:2)以外に移動したら、音声プレイヤーをリセット
+      if (_tabController.index != 2) {
+        _resetAudioPlayer();
+      }
+    });
 
     // ★ AudioPlayer のストリーム購読
     _audioPlayer.durationStream.listen((d) {
@@ -75,6 +91,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    _tabController.dispose();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -168,34 +185,33 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3, // 画像, 動画, 音声の3タブ
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text("${widget.name} のメディア一覧"),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.image)),       // 画像
-              Tab(icon: Icon(Icons.video_file)),  // 動画
-              Tab(icon: Icon(Icons.audiotrack)),  // 音声
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("${widget.name} のメディア一覧"),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.image)),       // 画像
+            Tab(icon: Icon(Icons.video_file)),  // 動画
+            Tab(icon: Icon(Icons.audiotrack)),  // 音声
+          ],
         ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  // 画像タブ
-                  _buildGroupedGrid(imageList, "画像がありません", isImage: true),
-                  // 動画タブ
-                  _buildGroupedGrid(videoList, "動画がありません", isImage: false),
-                  // 音声タブ（リスト + 下部プレイヤー）
-                  _buildAudioList(audioList, "音声がありません"),
-                ],
-              ),
-        // ★ 下部に常に表示するオーディオプレイヤー
-        bottomNavigationBar: _buildAudioPlayerBar(),
       ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                // 画像タブ
+                _buildGroupedGrid(imageList, "画像がありません", isImage: true),
+                // 動画タブ
+                _buildGroupedGrid(videoList, "動画がありません", isImage: false),
+                // 音声タブ（リスト + 下部プレイヤー）
+                _buildAudioList(audioList, "音声がありません"),
+              ],
+            ),
+      // ★ 音声タブの時のみ表示するオーディオプレイヤー
+      bottomNavigationBar: _currentTabIndex == 2 ? _buildAudioPlayerBar() : null,
     );
   }
 
