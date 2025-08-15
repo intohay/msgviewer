@@ -93,27 +93,30 @@ class Message extends StatelessWidget {
               const SizedBox(height: 8),
               
               // ★ 「名前＋時刻＋星」を同じ行に配置
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "$senderName　${_datetimeConverter(time)}",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.normal,
-                      fontSize: 11,
-                    ),
-                  ),
-                  // お気に入りなら星アイコンを表示
-                  if (isFavorite)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 22.0),
-                        child: Icon(
-                          Icons.star,
-                          color: Colors.orangeAccent,
-                          size: 16,
+              Padding(
+                padding: const EdgeInsets.only(left: 10.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "$senderName　${_datetimeConverter(time)}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.normal,
+                        fontSize: 11,
                       ),
-                    ), 
-                ],
+                    ),
+                    // お気に入りなら星アイコンを表示
+                    if (isFavorite)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 22.0),
+                          child: Icon(
+                            Icons.star,
+                            color: Colors.orangeAccent,
+                            size: 16,
+                        ),
+                      ), 
+                  ],
+                ),
               ),
 
               // メッセージボックス（吹き出しスタイル）
