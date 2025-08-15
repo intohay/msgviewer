@@ -88,7 +88,7 @@ class DatabaseHelper {
 
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 5, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 6, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -97,7 +97,8 @@ class DatabaseHelper {
           text TEXT,
           filepath TEXT,
           thumb_filepath TEXT,
-          is_favorite BOOLEAN
+          is_favorite BOOLEAN,
+          video_duration INTEGER
         )
       ''');
       await db.execute('''
@@ -140,6 +141,16 @@ class DatabaseHelper {
         print('Upgrading to version 5: Converting absolute paths to relative paths');
         // 既存のメッセージのパスを絶対パスから相対パスに変換
         await _migratePathsToRelative(db);
+      }
+      if (oldVersion < 6) {
+        print('Upgrading to version 6: Adding video_duration column');
+        // 既存のテーブルにvideo_durationカラムを追加
+        final columns = await db.rawQuery('PRAGMA table_info(Messages)');
+        final hasVideoDuration = columns.any((col) => col['name'] == 'video_duration');
+        if (!hasVideoDuration) {
+          await db.execute('ALTER TABLE Messages ADD COLUMN video_duration INTEGER');
+          print('video_duration column added successfully');
+        }
       }
     });
   }
@@ -197,6 +208,12 @@ class DatabaseHelper {
       final relativePath = await toRelativePath(row[4]);
       final relativeThumbPath = await toRelativePath(row[5]);
       
+      // 動画時間を取得（7番目のカラムがある場合）
+      int? videoDuration;
+      if (row.length > 7) {
+        videoDuration = row[7] is int ? row[7] : null;
+      }
+      
       await db.insert(
         'Messages',
         {
@@ -206,7 +223,8 @@ class DatabaseHelper {
           'text': row[3],
           'filepath': relativePath,
           'thumb_filepath': relativeThumbPath,
-          'is_favorite': row[6] == 'TRUE' ? 1 : 0  // Adjusted index for is_favorite
+          'is_favorite': row[6] == 'TRUE' ? 1 : 0,  // Adjusted index for is_favorite
+          'video_duration': videoDuration,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );

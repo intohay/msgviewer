@@ -50,10 +50,19 @@ class Message extends StatelessWidget {
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
       return InlineAudio(audioPath: mediaPath);
     } else if (mediaPath.endsWith('.mp4')) {
+      // allMediaから現在のメディアのvideo_durationを取得
+      int? videoDuration;
+      final index = currentMediaIndex;
+      if (allMedia != null && index != null && 
+          index >= 0 && index < allMedia!.length) {
+        videoDuration = allMedia![index]['video_duration'] as int?;
+      }
+      
       return InlineVideo(
         videoPath: mediaPath, 
         thumbnailPath: thumbPath,
         time: time,
+        videoDurationMs: videoDuration,
         allMedia: allMedia,
         currentIndex: currentMediaIndex,
       );

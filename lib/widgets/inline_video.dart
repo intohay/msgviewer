@@ -29,6 +29,9 @@ class InlineVideo extends StatefulWidget {
   
   /// トーク名（トーク画面へのジャンプ用）
   final String? talkName;
+  
+  /// 動画の長さ（ミリ秒）
+  final int? videoDurationMs;
 
   const InlineVideo({
     Key? key,
@@ -40,6 +43,7 @@ class InlineVideo extends StatefulWidget {
     this.allMedia,
     this.currentIndex,
     this.talkName,
+    this.videoDurationMs,
   }) : super(key: key);
 
   @override
@@ -67,8 +71,12 @@ class _InlineVideoState extends State<InlineVideo> {
 
   /// サムネイル画像のアスペクト比を取得 + 動画の長さを取得
   Future<void> _initializeDisplay() async {
-    // 動画のメタデータを取得
-    await _loadVideoDuration();
+    // videoDurationMsが渡されている場合はそれを使用、なければ動画から取得
+    if (widget.videoDurationMs != null) {
+      _videoDuration = Duration(milliseconds: widget.videoDurationMs!);
+    } else {
+      await _loadVideoDuration();
+    }
     
     final thumbFile = File(widget.thumbnailPath);
     if (await thumbFile.exists()) {

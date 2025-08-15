@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart'; // Archive 4.0.4 用の archive_io.dart
 import 'package:path/path.dart' as p;
 import 'package:csv/csv.dart';
+import 'package:video_player/video_player.dart';
 import '../utils/database_helper.dart';
 import 'helper.dart';
 
@@ -92,6 +93,8 @@ class FileManager {
           } else {
             row.insert(5, "");
           }
+          // 画像の場合はvideo_durationをnullに
+          row.add(null);
         } else if (filename.endsWith('.mp4')) {
           thumb = filename.replaceFirst('.mp4', '_thumb.jpg');
 
@@ -99,14 +102,33 @@ class FileManager {
           if (File(fullFilePath).existsSync()) {
             await generateVideoThumbnail(fullFilePath, fullThumbPath);
             row.insert(5, fullThumbPath);
+            
+            // 動画の長さを取得
+            try {
+              final controller = VideoPlayerController.file(File(fullFilePath));
+              await controller.initialize();
+              final duration = controller.value.duration;
+              row.add(duration.inMilliseconds); // ミリ秒単位で保存
+              controller.dispose();
+            } catch (e) {
+              print('Error getting video duration: $e');
+              row.add(null); // エラー時はnullを追加
+            }
           } else {
             row.insert(5, "");
+            row.add(null); // ファイルが存在しない場合もnullを追加
+          }
+        } else {
+          // 動画以外のファイルの場合はnullを追加
+          if (row.length == 6) {
+            row.add(null);
           }
         }
 
       
       } else {
         row.insert(5, "");
+        row.add(null); // ファイルパスが空の場合もvideo_durationをnullに
       }
     }
 
@@ -190,6 +212,18 @@ class FileManager {
           throw Exception(
               "Failed to generate video thumbnail for $mediaFilePath: $e");
         }
+        
+        // 動画の長さを取得
+        try {
+          final controller = VideoPlayerController.file(File(mediaFilePath));
+          await controller.initialize();
+          final duration = controller.value.duration;
+          groupedEntries[id]!["video_duration"] = duration.inMilliseconds;
+          controller.dispose();
+        } catch (e) {
+          print('Error getting video duration: $e');
+          groupedEntries[id]!["video_duration"] = null;
+        }
       } else if (type == 3 && audioExtensions.contains(".$extension")) {
         final mediaFilePath = p.join(mediaPath, p.basename(file.path));
         file.copySync(mediaFilePath);
@@ -206,6 +240,7 @@ class FileManager {
         entry["filepath"],
         entry["thumb_filepath"],
         false,
+        entry["video_duration"],  // 動画時間を追加
       ]);
     }
 

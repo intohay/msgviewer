@@ -281,12 +281,14 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                   );
                 } else {
                   // 動画
+                  final videoDuration = row['video_duration'] as int?;
                   return InlineVideo(
                     videoPath: filePath,
                     thumbnailPath: thumbPath,
                     isSquare: true,
                     showPlayIcon: false,
                     time: dateTime,
+                    videoDurationMs: videoDuration,  // データベースから取得した動画時間を渡す
                     // 動画タブでは動画のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: videoList,
                     currentIndex: videoList.indexWhere((item) => item['id'] == row['id']),
