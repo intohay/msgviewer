@@ -117,6 +117,38 @@ class _FavoritesPageState extends State<FavoritesPage> {
           );
         },
       ),
+      floatingActionButton: favoriteMessages.isNotEmpty
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 最上部へジャンプボタン
+                FloatingActionButton.small(
+                  heroTag: "toTop",
+                  onPressed: () {
+                    _scrollController.animateTo(
+                      _scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Icon(Icons.arrow_upward),
+                ),
+                const SizedBox(height: 8),
+                // 最下部へジャンプボタン
+                FloatingActionButton.small(
+                  heroTag: "toBottom",
+                  onPressed: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Icon(Icons.arrow_downward),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

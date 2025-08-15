@@ -25,6 +25,7 @@ class TextSearchPage extends StatefulWidget {
 class _TextSearchPageState extends State<TextSearchPage> {
   final _dbHelper = DatabaseHelper();
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   bool _isLoading = false;
   List<Map<String, dynamic>> _searchResults = [];
 
@@ -50,6 +51,7 @@ class _TextSearchPageState extends State<TextSearchPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -100,6 +102,7 @@ class _TextSearchPageState extends State<TextSearchPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.separated(
+                    controller: _scrollController,
                     reverse: true,
                     itemCount: _searchResults.length,
                     separatorBuilder: (_, __) => const Divider(),
@@ -165,6 +168,38 @@ class _TextSearchPageState extends State<TextSearchPage> {
           ),
         ],
       ),
+      floatingActionButton: _searchResults.isNotEmpty
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 最上部へジャンプボタン
+                FloatingActionButton.small(
+                  heroTag: "toTop",
+                  onPressed: () {
+                    _scrollController.animateTo(
+                      _scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Icon(Icons.arrow_upward),
+                ),
+                const SizedBox(height: 8),
+                // 最下部へジャンプボタン
+                FloatingActionButton.small(
+                  heroTag: "toBottom",
+                  onPressed: () {
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Icon(Icons.arrow_downward),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }
