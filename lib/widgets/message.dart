@@ -84,7 +84,7 @@ class Message extends StatelessWidget {
             radius: 20,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 2),
         // メッセージ本文
         Expanded(
           child: Column(
@@ -116,27 +116,44 @@ class Message extends StatelessWidget {
                 ],
               ),
 
-              // メッセージボックス
-              Container(
-                margin: const EdgeInsets.only(top: 5.0, right: 15.0),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 10.0,
-                  horizontal: 15.0,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(3.0),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    if (mediaPath != null &&
-                        mediaPath!.isNotEmpty)
-                      ifMedia(mediaPath!, thumbPath ?? ''),
-                    if (message != null && message!.isNotEmpty)
-                      _buildMessageText(message!),
-                  ],
-                ),
+              // メッセージボックス（吹き出しスタイル）
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // メッセージ本体
+                  Container(
+                    margin: const EdgeInsets.only(top: 5.0, right: 15.0, left: 10.0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10.0,
+                      horizontal: 15.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (mediaPath != null &&
+                            mediaPath!.isNotEmpty)
+                          ifMedia(mediaPath!, thumbPath ?? ''),
+                        if (message != null && message!.isNotEmpty)
+                          _buildMessageText(message!),
+                      ],
+                    ),
+                  ),
+                  // 吹き出しの三角形部分
+                  Positioned(
+                    top: 10,
+                    left: 0,
+                    child: CustomPaint(
+                      size: const Size(12, 10),
+                      painter: _BubbleTailPainter(
+                        color: Colors.grey.shade200,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -249,4 +266,30 @@ class Message extends StatelessWidget {
         "${datetime.hour.toString().padLeft(2, '0')}:"
         "${datetime.minute.toString().padLeft(2, '0')}";
   }
+}
+
+// 吹き出しの三角形部分を描画するCustomPainter
+class _BubbleTailPainter extends CustomPainter {
+  final Color color;
+
+  _BubbleTailPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // 上辺は水平、下辺は斜めの三角形
+    final path = Path()
+      ..moveTo(size.width, 0)  // 右上（水平線の右端）
+      ..lineTo(size.width, size.height)  // 右下
+      ..lineTo(0, 0)  // 左上（先端）
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
