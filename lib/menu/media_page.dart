@@ -259,6 +259,12 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                 final row = rows[idx];
                 final filePath = row['filepath'] as String;
                 final thumbPath = row['thumb_filepath'] as String? ?? "";
+                final message = row['text'] as String?;
+                final dateStr = row['date'] as String?;
+                DateTime? dateTime;
+                if (dateStr != null) {
+                  dateTime = DateTime.tryParse(dateStr);
+                }
 
                 if (isImage) {
                   // 画像
@@ -266,6 +272,8 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     imagePath: filePath,
                     thumbnailPath: thumbPath.isNotEmpty ? thumbPath : filePath,
                     isSquare: true,
+                    message: message,
+                    time: dateTime,
                   );
                 } else {
                   // 動画

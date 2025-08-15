@@ -32,7 +32,12 @@ class Message extends StatelessWidget {
   /// メディアの種類を判定して対応ウィジェットを返す
   Widget ifMedia(String mediaPath, String thumbPath) {
     if (mediaPath.endsWith('.jpg') || mediaPath.endsWith('.png')) {
-      return InlineImage(imagePath: mediaPath, thumbnailPath: thumbPath);
+      return InlineImage(
+        imagePath: mediaPath, 
+        thumbnailPath: thumbPath,
+        message: message,
+        time: time,
+      );
     } else if (mediaPath.endsWith('.m4a') ||
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
       return InlineAudio(audioPath: mediaPath);
