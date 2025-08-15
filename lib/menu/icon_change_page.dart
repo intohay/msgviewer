@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../utils/database_helper.dart';
@@ -46,19 +47,56 @@ class _IconChangePageState extends State<IconChangePage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      final savedRelativePath = await _saveImageLocally(pickedFile.path);
-      await DatabaseHelper().setIconPath(widget.talkName, savedRelativePath);
+      // 画像をクロップ
+      final croppedFile = await _cropImage(pickedFile.path);
       
-      // UIには絶対パスを設定
-      final directory = await getApplicationDocumentsDirectory();
-      final absolutePath = '${directory.path}/$savedRelativePath';
-      
-      setState(() {
-        iconPath = absolutePath;
-        print("iconPath: $iconPath");
-      });
-      widget.onIconChanged(absolutePath); // 絶対パスで通知
+      if (croppedFile != null) {
+        final savedRelativePath = await _saveImageLocally(croppedFile.path);
+        await DatabaseHelper().setIconPath(widget.talkName, savedRelativePath);
+        
+        // UIには絶対パスを設定
+        final directory = await getApplicationDocumentsDirectory();
+        final absolutePath = '${directory.path}/$savedRelativePath';
+        
+        setState(() {
+          iconPath = absolutePath;
+          print("iconPath: $iconPath");
+        });
+        widget.onIconChanged(absolutePath); // 絶対パスで通知
+      }
     }
+  }
+
+  Future<CroppedFile?> _cropImage(String imagePath) async {
+    return await ImageCropper().cropImage(
+      sourcePath: imagePath,
+      cropStyle: CropStyle.circle,  // 円形でクロップ
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),  // 正方形の比率
+      aspectRatioPresets: [
+        CropAspectRatioPreset.square,  // 正方形のみ
+      ],
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'アイコンを調整',
+          toolbarColor: Theme.of(context).primaryColor,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,  // アスペクト比を固定
+          hideBottomControls: false,
+          showCropGrid: true,
+        ),
+        IOSUiSettings(
+          title: 'アイコンを調整',
+          aspectRatioLockEnabled: true,  // アスペクト比を固定
+          resetAspectRatioEnabled: false,
+          aspectRatioPickerButtonHidden: true,  // アスペクト比選択ボタンを非表示
+          rotateButtonsHidden: false,
+          resetButtonHidden: false,
+          doneButtonTitle: '完了',
+          cancelButtonTitle: 'キャンセル',
+        ),
+      ],
+    );
   }
 
   @override
