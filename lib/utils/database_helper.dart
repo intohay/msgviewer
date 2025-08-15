@@ -88,7 +88,7 @@ class DatabaseHelper {
 
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 6, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 7, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -98,7 +98,8 @@ class DatabaseHelper {
           filepath TEXT,
           thumb_filepath TEXT,
           is_favorite BOOLEAN,
-          video_duration INTEGER
+          video_duration INTEGER,
+          audio_duration INTEGER
         )
       ''');
       await db.execute('''
@@ -150,6 +151,16 @@ class DatabaseHelper {
         if (!hasVideoDuration) {
           await db.execute('ALTER TABLE Messages ADD COLUMN video_duration INTEGER');
           print('video_duration column added successfully');
+        }
+      }
+      if (oldVersion < 7) {
+        print('Upgrading to version 7: Adding audio_duration column');
+        // 既存のテーブルにaudio_durationカラムを追加
+        final columns = await db.rawQuery('PRAGMA table_info(Messages)');
+        final hasAudioDuration = columns.any((col) => col['name'] == 'audio_duration');
+        if (!hasAudioDuration) {
+          await db.execute('ALTER TABLE Messages ADD COLUMN audio_duration INTEGER');
+          print('audio_duration column added successfully');
         }
       }
     });
@@ -214,6 +225,12 @@ class DatabaseHelper {
         videoDuration = row[7] is int ? row[7] : null;
       }
       
+      // 音声時間を取得（8番目のカラムがある場合）
+      int? audioDuration;
+      if (row.length > 8) {
+        audioDuration = row[8] is int ? row[8] : null;
+      }
+      
       await db.insert(
         'Messages',
         {
@@ -225,6 +242,7 @@ class DatabaseHelper {
           'thumb_filepath': relativeThumbPath,
           'is_favorite': row[6] == 'TRUE' ? 1 : 0,  // Adjusted index for is_favorite
           'video_duration': videoDuration,
+          'audio_duration': audioDuration,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -568,6 +586,26 @@ class DatabaseHelper {
       orderBy: 'date ASC',
     );
     return await convertPathsToAbsolute(messages);
+  }
+
+  Future<void> updateVideoDuration(int id, int duration) async {
+    final db = await database;
+    await db.update(
+      'Messages',
+      {'video_duration': duration},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+  
+  Future<void> updateAudioDuration(int id, int duration) async {
+    final db = await database;
+    await db.update(
+      'Messages',
+      {'audio_duration': duration},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<Map<String, dynamic>?> getClosestMessageToDate(String? name, DateTime date) async {

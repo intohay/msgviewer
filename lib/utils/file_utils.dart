@@ -6,6 +6,7 @@ import 'package:archive/archive_io.dart'; // Archive 4.0.4 用の archive_io.dar
 import 'package:path/path.dart' as p;
 import 'package:csv/csv.dart';
 import 'package:video_player/video_player.dart';
+import 'package:just_audio/just_audio.dart';
 import '../utils/database_helper.dart';
 import 'helper.dart';
 
@@ -108,8 +109,9 @@ class FileManager {
           } else {
             row.insert(5, "");
           }
-          // 画像の場合はvideo_durationをnullに
-          row.add(null);
+          // 画像の場合はvideo_durationとaudio_durationをnullに
+          row.add(null);  // video_duration
+          row.add(null);  // audio_duration
         } else if (filename.endsWith('.mp4')) {
           thumb = filename.replaceFirst('.mp4', '_thumb.jpg');
 
@@ -123,27 +125,53 @@ class FileManager {
               final controller = VideoPlayerController.file(File(fullFilePath));
               await controller.initialize();
               final duration = controller.value.duration;
-              row.add(duration.inMilliseconds); // ミリ秒単位で保存
+              row.add(duration.inMilliseconds); // video_duration（ミリ秒単位で保存）
               controller.dispose();
             } catch (e) {
               print('Error getting video duration: $e');
               row.add(null); // エラー時はnullを追加
             }
+            row.add(null); // audio_durationはnull
           } else {
             row.insert(5, "");
+            row.add(null); // video_durationがnull
+            row.add(null); // audio_durationがnull
+          }
+        } else if (filename.endsWith('.m4a') || (filename.contains('_3_') && filename.endsWith('.mp4'))) {
+          // 音声ファイルの処理
+          row.insert(5, ""); // サムネイルなし
+          row.add(null); // video_durationはnull
+          
+          // 音声の長さを取得
+          if (File(fullFilePath).existsSync()) {
+            try {
+              final audioPlayer = AudioPlayer();
+              final duration = await audioPlayer.setFilePath(fullFilePath);
+              if (duration != null) {
+                row.add(duration.inMilliseconds); // audio_duration（ミリ秒単位で保存）
+              } else {
+                row.add(null);
+              }
+              audioPlayer.dispose();
+            } catch (e) {
+              print('Error getting audio duration: $e');
+              row.add(null); // エラー時はnullを追加
+            }
+          } else {
             row.add(null); // ファイルが存在しない場合もnullを追加
           }
         } else {
-          // 動画以外のファイルの場合はnullを追加
-          if (row.length == 6) {
-            row.add(null);
-          }
+          // その他のファイルの場合
+          row.insert(5, ""); // サムネイルなし
+          row.add(null); // video_durationはnull
+          row.add(null); // audio_durationはnull
         }
 
       
       } else {
         row.insert(5, "");
-        row.add(null); // ファイルパスが空の場合もvideo_durationをnullに
+        row.add(null); // video_durationをnullに
+        row.add(null); // audio_durationをnullに
       }
     }
 
@@ -169,7 +197,7 @@ class FileManager {
     final textExtensions = {'.txt'};
     final imageExtensions = {'.jpg', '.jpeg', '.png'};
     final videoExtensions = {'.mp4'};
-    final audioExtensions = {'.mp4'};
+    final audioExtensions = {'.m4a', '.mp4'};
 
     Map<String, Map<String, dynamic>> groupedEntries = {};
     // 再帰的に展開ディレクトリ内の全ファイルを取得
@@ -250,6 +278,21 @@ class FileManager {
         final mediaFilePath = p.join(mediaPath, p.basename(file.path));
         file.copySync(mediaFilePath);
         groupedEntries[id]!["filepath"] = mediaFilePath;
+        
+        // 音声の長さを取得
+        try {
+          final audioPlayer = AudioPlayer();
+          final duration = await audioPlayer.setFilePath(mediaFilePath);
+          if (duration != null) {
+            groupedEntries[id]!["audio_duration"] = duration.inMilliseconds;
+          } else {
+            groupedEntries[id]!["audio_duration"] = null;
+          }
+          audioPlayer.dispose();
+        } catch (e) {
+          print('Error getting audio duration: $e');
+          groupedEntries[id]!["audio_duration"] = null;
+        }
       }
     }
 
@@ -262,7 +305,8 @@ class FileManager {
         entry["filepath"],
         entry["thumb_filepath"],
         false,
-        entry["video_duration"],  // 動画時間を追加
+        entry["video_duration"],  // 動画時間
+        entry["audio_duration"],  // 音声時間を追加
       ]);
     }
 

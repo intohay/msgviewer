@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:video_player/video_player.dart';
 import 'package:path/path.dart' as p;
 
 import '../utils/database_helper.dart';
@@ -31,6 +32,8 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   List<Map<String, dynamic>> audioList = [];
 
   bool isLoading = true;
+  bool _hasCalculatedVideoDurations = false;
+  bool _hasCalculatedAudioDurations = false;
   
   // ★ TabController
   late TabController _tabController;
@@ -54,10 +57,23 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     
     // ★ TabController の初期化
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
+    _tabController.addListener(() async {
       setState(() {
         _currentTabIndex = _tabController.index;
       });
+      
+      // 動画タブ(index:1)に初めて訪れた時、動画の長さを計算
+      if (_tabController.index == 1 && !_hasCalculatedVideoDurations) {
+        _hasCalculatedVideoDurations = true;
+        await _calculateVideoDurations();
+      }
+      
+      // 音声タブ(index:2)に初めて訪れた時、音声の長さを計算
+      if (_tabController.index == 2 && !_hasCalculatedAudioDurations) {
+        _hasCalculatedAudioDurations = true;
+        await _calculateAudioDurations();
+      }
+      
       // 音声タブ(index:2)以外に移動したら、音声プレイヤーをリセット
       if (_tabController.index != 2) {
         _resetAudioPlayer();
@@ -108,6 +124,55 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
       audioList = audiosRaw.map((e) => Map<String, dynamic>.from(e)).toList();
       isLoading = false;
     });
+  }
+  
+  /// 既存の動画の長さを計算してデータベースに保存
+  Future<void> _calculateVideoDurations() async {
+    for (var video in videoList) {
+      if (video['video_duration'] == null) {
+        final filePath = video['filepath'] as String?;
+        if (filePath != null && File(filePath).existsSync()) {
+          try {
+            final controller = VideoPlayerController.file(File(filePath));
+            await controller.initialize();
+            final duration = controller.value.duration;
+            video['video_duration'] = duration.inMilliseconds;
+            
+            // データベースを更新
+            await dbHelper.updateVideoDuration(video['id'], duration.inMilliseconds);
+            controller.dispose();
+          } catch (e) {
+            print('Error calculating video duration: $e');
+          }
+        }
+      }
+    }
+    setState(() {});
+  }
+  
+  /// 既存の音声の長さを計算してデータベースに保存
+  Future<void> _calculateAudioDurations() async {
+    for (var audio in audioList) {
+      if (audio['audio_duration'] == null) {
+        final filePath = audio['filepath'] as String?;
+        if (filePath != null && File(filePath).existsSync()) {
+          try {
+            final player = AudioPlayer();
+            final duration = await player.setFilePath(filePath);
+            if (duration != null) {
+              audio['audio_duration'] = duration.inMilliseconds;
+              
+              // データベースを更新
+              await dbHelper.updateAudioDuration(audio['id'], duration.inMilliseconds);
+            }
+            player.dispose();
+          } catch (e) {
+            print('Error calculating audio duration: $e');
+          }
+        }
+      }
+    }
+    setState(() {});
   }
 
   /// 音声を再生する
