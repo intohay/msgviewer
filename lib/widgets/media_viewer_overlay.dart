@@ -31,6 +31,9 @@ class MediaViewerOverlay {
     bool isDraggingSeek = false;
     double dragPercent = 0.0; // 0.0 - 1.0
     
+    // PageViewのスクロール物理を管理するための変数
+    ScrollPhysics pageViewPhysics = const AlwaysScrollableScrollPhysics();
+    
     // 10秒後に自動的に情報を非表示にする
     void startHideTimer(Function setState) {
       hideTimer?.cancel();
@@ -126,6 +129,7 @@ class MediaViewerOverlay {
                       Positioned.fill(
                         child: PageView.builder(
                           controller: pageController,
+                          physics: pageViewPhysics,  // 動的に変更可能なphysicsを使用
                           itemCount: allMedia.length,
                           onPageChanged: (index) {
                             setState(() {
@@ -284,63 +288,81 @@ class MediaViewerOverlay {
                                   // 下部のシークバーと時間表示（白い丸いつまみ付き）
                                   if (showInfo && controller.value.isInitialized)
                                     Positioned(
-                                      bottom: 80,
-                                      left: 16,
-                                      right: 16,
-                                      child: Column(
-                                        children: [
-                                          SizedBox(
-                                            height: 40,
-                                            child: LayoutBuilder(
-                                              builder: (context, constraints) {
-                                                final totalMs = controller.value.duration.inMilliseconds;
-                                                final currentMs = controller.value.position.inMilliseconds;
-                                                final baseProgress = totalMs > 0
-                                                    ? (currentMs / totalMs).clamp(0.0, 1.0)
-                                                    : 0.0;
-                                                final progress = isDraggingSeek ? dragPercent : baseProgress;
+                                      bottom: 60,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 120,  // シークバーエリア全体の高さ
+                                        color: Colors.transparent,
+                                        child: Stack(
+                                          children: [
+                                            // 透明な背景でタッチイベントをキャッチ
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onHorizontalDragStart: (_) {},
+                                              onHorizontalDragUpdate: (_) {},
+                                              onHorizontalDragEnd: (_) {},
+                                              onVerticalDragStart: (_) {},
+                                              onVerticalDragUpdate: (_) {},
+                                              onVerticalDragEnd: (_) {},
+                                            ),
+                                            // シークバーUI
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Column(
+                                                children: [
+                                                  Container(
+                                                    height: 60,  // タッチ領域を拡大（40 → 60）
+                                                    alignment: Alignment.center,
+                                                    child: LayoutBuilder(
+                                                      builder: (context, constraints) {
+                                                        final totalMs = controller.value.duration.inMilliseconds;
+                                                        final currentMs = controller.value.position.inMilliseconds;
+                                                        final baseProgress = totalMs > 0
+                                                            ? (currentMs / totalMs).clamp(0.0, 1.0)
+                                                            : 0.0;
+                                                        final progress = isDraggingSeek ? dragPercent : baseProgress;
 
-                                                void seekToPercent(double percent) {
-                                                  percent = percent.clamp(0.0, 1.0);
-                                                  final targetMs = (totalMs * percent).toInt();
-                                                  controller.seekTo(Duration(milliseconds: targetMs));
-                                                }
+                                                        void seekToPercent(double percent) {
+                                                          percent = percent.clamp(0.0, 1.0);
+                                                          final targetMs = (totalMs * percent).toInt();
+                                                          controller.seekTo(Duration(milliseconds: targetMs));
+                                                        }
 
-                                                return GestureDetector(
-                                                  behavior: HitTestBehavior.translucent,
-                                                  onTapDown: (details) {
-                                                    final localX = details.localPosition.dx;
-                                                    dragPercent = (localX / constraints.maxWidth).clamp(0.0, 1.0);
-                                                    isDraggingSeek = true;
-                                                    setState(() {});
-                                                    seekToPercent(dragPercent);
-                                                    isDraggingSeek = false;
-                                                  },
-                                                  onHorizontalDragStart: (_) {
-                                                    isDraggingSeek = true;
-                                                    setState(() {});
-                                                  },
-                                                  onHorizontalDragUpdate: (details) {
-                                                    dragPercent = ((details.localPosition.dx) / constraints.maxWidth)
-                                                        .clamp(0.0, 1.0);
-                                                    setState(() {});
-                                                  },
-                                                  onHorizontalDragEnd: (_) {
-                                                    seekToPercent(dragPercent);
-                                                    isDraggingSeek = false;
-                                                    setState(() {});
-                                                  },
+                                                        return GestureDetector(
+                                                    behavior: HitTestBehavior.opaque,  // タッチ領域全体を反応させる
+                                                    onTapDown: (details) {
+                                                      final localX = details.localPosition.dx;
+                                                      dragPercent = (localX / constraints.maxWidth).clamp(0.0, 1.0);
+                                                      isDraggingSeek = true;
+                                                      setState(() {});
+                                                      seekToPercent(dragPercent);
+                                                      isDraggingSeek = false;
+                                                    },
+                                                    onHorizontalDragStart: (details) {
+                                                      isDraggingSeek = true;
+                                                      dragPercent = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                                                      setState(() {});
+                                                    },
+                                                    onHorizontalDragUpdate: (details) {
+                                                      dragPercent = ((details.localPosition.dx) / constraints.maxWidth)
+                                                          .clamp(0.0, 1.0);
+                                                      setState(() {});
+                                                    },
+                                                    onHorizontalDragEnd: (_) {
+                                                      seekToPercent(dragPercent);
+                                                      isDraggingSeek = false;
+                                                      setState(() {});
+                                                    },
                                                   child: Stack(
+                                                    alignment: Alignment.center,
                                                     children: [
                                                       // 背景トラック
-                                                      Align(
-                                                        alignment: Alignment.center,
-                                                        child: Container(
-                                                          height: 4,
-                                                          decoration: BoxDecoration(
-                                                            color: Colors.white.withValues(alpha: 0.3),
-                                                            borderRadius: BorderRadius.circular(2),
-                                                          ),
+                                                      Container(
+                                                        height: 4,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white.withValues(alpha: 0.3),
+                                                          borderRadius: BorderRadius.circular(2),
                                                         ),
                                                       ),
                                                       // 再生済みトラック
@@ -359,7 +381,6 @@ class MediaViewerOverlay {
                                                       Positioned(
                                                         left: (constraints.maxWidth * progress - 10)
                                                             .clamp(0.0, constraints.maxWidth - 20),
-                                                        top: 10,
                                                         child: Container(
                                                           width: 20,
                                                           height: 20,
@@ -378,33 +399,37 @@ class MediaViewerOverlay {
                                                       ),
                                                     ],
                                                   ),
-                                                );
-                                              },
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  // 時間表示
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        formatDuration(controller.value.position),
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 12,
+                                                          decoration: TextDecoration.none,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        formatDuration(controller.value.duration),
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 12,
+                                                          decoration: TextDecoration.none,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          // 時間表示
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                formatDuration(controller.value.position),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  decoration: TextDecoration.none,
-                                                ),
-                                              ),
-                                              Text(
-                                                formatDuration(controller.value.duration),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  decoration: TextDecoration.none,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                 ],
