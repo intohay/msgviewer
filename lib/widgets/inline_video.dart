@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import '../utils/overlay_manager.dart';
 
 // 動画のインライン再生サムネイル
 class InlineVideo extends StatefulWidget {
@@ -29,7 +30,7 @@ class InlineVideo extends StatefulWidget {
 }
 
 class _InlineVideoState extends State<InlineVideo> {
-  OverlayEntry? overlayEntry;
+  final OverlayManager _overlayManager = OverlayManager();
   String? _thumbnailPath;
   bool _isLoading = true;
   double _aspectRatio = 16 / 9;
@@ -38,6 +39,12 @@ class _InlineVideoState extends State<InlineVideo> {
   void initState() {
     super.initState();
     _initializeDisplay();
+  }
+
+  @override
+  void dispose() {
+    // ウィジェットが破棄される際はOverlayManagerが管理
+    super.dispose();
   }
 
   /// サムネイル画像のアスペクト比を取得
@@ -78,7 +85,7 @@ class _InlineVideoState extends State<InlineVideo> {
 
   /// フルスクリーンの動画再生をオーバーレイで表示
   void _showOverlay(BuildContext context, Widget videoPlayer) {
-    overlayEntry = OverlayEntry(
+    final overlayEntry = OverlayEntry(
       builder: (context) => Positioned.fill(
         child: Material(
           color: Colors.black,
@@ -90,7 +97,9 @@ class _InlineVideoState extends State<InlineVideo> {
                 left: 10,
                 child: IconButton(
                   icon: const Icon(Icons.close, size: 30, color: Colors.white),
-                  onPressed: () => overlayEntry?.remove(),
+                  onPressed: () {
+                    _overlayManager.closeOverlay();
+                  },
                 ),
               ),
             ],
@@ -98,7 +107,8 @@ class _InlineVideoState extends State<InlineVideo> {
         ),
       ),
     );
-    Overlay.of(context).insert(overlayEntry!);
+    // OverlayManagerを通じて表示
+    _overlayManager.showOverlay(context, overlayEntry);
   }
 
   @override

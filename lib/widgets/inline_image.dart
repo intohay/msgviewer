@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../utils/overlay_manager.dart';
 
 class InlineImage extends StatefulWidget {
   final String imagePath;
@@ -21,27 +22,20 @@ class InlineImage extends StatefulWidget {
 }
 
 class _InlineImageState extends State<InlineImage> {
-  OverlayEntry? overlayEntry;
+  final OverlayManager _overlayManager = OverlayManager();
 
   @override
   void dispose() {
-    // ウィジェットが破棄される際にオーバーレイも削除
-    overlayEntry?.remove();
-    overlayEntry = null;
+    // ウィジェットが破棄される際はOverlayManagerが管理
     super.dispose();
   }
 
   void _showOverlay(BuildContext context, FileImage image) {
-    // 新しいオーバーレイを表示する前に、既存のものを削除
-    overlayEntry?.remove();
-    overlayEntry = null;
-    
-    overlayEntry = OverlayEntry(
+    final overlayEntry = OverlayEntry(
       builder: (overlayContext) => GestureDetector(
         onTap: () {
           // 背景タップで閉じる
-          overlayEntry?.remove();
-          overlayEntry = null;
+          _overlayManager.closeOverlay();
         },
         child: Container(
           color: Colors.black,
@@ -68,8 +62,7 @@ class _InlineImageState extends State<InlineImage> {
                   child: IconButton(
                     icon: const Icon(Icons.close, size: 30, color: Colors.white),
                     onPressed: () {
-                      overlayEntry?.remove();
-                      overlayEntry = null;
+                      _overlayManager.closeOverlay();
                     },
                   ),
                 ),
@@ -80,7 +73,8 @@ class _InlineImageState extends State<InlineImage> {
       ),
     );
     
-    Overlay.of(context).insert(overlayEntry!);
+    // OverlayManagerを通じて表示
+    _overlayManager.showOverlay(context, overlayEntry);
   }
 
   @override
