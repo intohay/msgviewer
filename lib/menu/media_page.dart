@@ -432,14 +432,25 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           // ★ スライダー
-          Slider(
-            value: currentMs,
-            max: totalMs > 0 ? totalMs : 1,
-            onChangeStart: (_) => _onSeekStart(),
-            onChanged: (value) => _onSeekChange(value),
-            onChangeEnd: (value) => _onSeekEnd(value),
-            activeColor: Colors.blue,
-            inactiveColor: Colors.grey.shade300,
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 8.0,
+              ),
+              overlayShape: const RoundSliderOverlayShape(
+                overlayRadius: 16.0,
+              ),
+              trackHeight: 4.0,
+            ),
+            child: Slider(
+              value: currentMs,
+              max: totalMs > 0 ? totalMs : 1,
+              onChangeStart: (_) => _onSeekStart(),
+              onChanged: (value) => _onSeekChange(value),
+              onChangeEnd: (value) => _onSeekEnd(value),
+              activeColor: Colors.blue,
+              inactiveColor: Colors.grey.shade300,
+            ),
           ),
           // ★ ボタン類 + 時間表示
           Row(

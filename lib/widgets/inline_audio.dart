@@ -116,25 +116,36 @@ class _InlineAudioState extends State<InlineAudio> {
                   return Column(
                     children: [
                       // ✅ スライダー（進行状況バー）
-                      Slider(
-                        value: _sliderValue.clamp(0, duration.inMilliseconds.toDouble()), // ✅ Update slider value
-                        max: duration.inMilliseconds.toDouble(),
-                        onChangeStart: (_) {
-                          _isSeeking = true;
-                        },
-                        onChanged: (value) {
-                          setState(() {
-                            _sliderValue = value;
-                          });
-                        },
-                        onChangeEnd: (value) {
-                          _audioPlayer.seek(Duration(milliseconds: value.toInt()));
-                          setState(() {
-                            _isSeeking = false;
-                          });
-                        },
-                        activeColor: Colors.blue,
-                        inactiveColor: Colors.grey.shade300,
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 8.0,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 16.0,
+                          ),
+                          trackHeight: 4.0,
+                        ),
+                        child: Slider(
+                          value: _sliderValue.clamp(0, duration.inMilliseconds.toDouble()), // ✅ Update slider value
+                          max: duration.inMilliseconds.toDouble(),
+                          onChangeStart: (_) {
+                            _isSeeking = true;
+                          },
+                          onChanged: (value) {
+                            setState(() {
+                              _sliderValue = value;
+                            });
+                          },
+                          onChangeEnd: (value) {
+                            _audioPlayer.seek(Duration(milliseconds: value.toInt()));
+                            setState(() {
+                              _isSeeking = false;
+                            });
+                          },
+                          activeColor: Colors.blue,
+                          inactiveColor: Colors.grey.shade300,
+                        ),
                       ),
                       // ✅ コントロール部分（アイコン・再生ボタン・時間）
                       Row(

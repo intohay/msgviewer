@@ -27,6 +27,9 @@ class MediaViewerOverlay {
     
     // 動画コントローラーのマップ（インデックスごとに管理）
     Map<int, VideoPlayerController> videoControllers = {};
+    // シーク中フラグと一時的なドラッグ位置
+    bool isDraggingSeek = false;
+    double dragPercent = 0.0; // 0.0 - 1.0
     
     // 10秒後に自動的に情報を非表示にする
     void startHideTimer(Function setState) {
@@ -218,7 +221,7 @@ class MediaViewerOverlay {
                                               child: Container(
                                                 padding: const EdgeInsets.all(12),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.grey.shade900.withValues(alpha: 0.7),
+                                                  color: Colors.grey.shade900.withValues(alpha: 0.3),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: const Icon(
@@ -243,7 +246,7 @@ class MediaViewerOverlay {
                                               child: Container(
                                                 padding: const EdgeInsets.all(16),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.grey.shade900.withValues(alpha: 0.7),
+                                                  color: Colors.grey.shade900.withValues(alpha: 0.3),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: Icon(
@@ -263,7 +266,7 @@ class MediaViewerOverlay {
                                               child: Container(
                                                 padding: const EdgeInsets.all(12),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.grey.shade900.withValues(alpha: 0.7),
+                                                  color: Colors.grey.shade900.withValues(alpha: 0.3),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: const Icon(
@@ -278,7 +281,7 @@ class MediaViewerOverlay {
                                       ),
                                     ),
                                   
-                                  // 下部のシークバーと時間表示
+                                  // 下部のシークバーと時間表示（白い丸いつまみ付き）
                                   if (showInfo && controller.value.isInitialized)
                                     Positioned(
                                       bottom: 80,
@@ -286,14 +289,97 @@ class MediaViewerOverlay {
                                       right: 16,
                                       child: Column(
                                         children: [
-                                          // VideoProgressIndicatorを使用（inline_video.dartと同じ）
-                                          VideoProgressIndicator(
-                                            controller,
-                                            allowScrubbing: true,
-                                            colors: const VideoProgressColors(
-                                              playedColor: Colors.white,
-                                              bufferedColor: Colors.grey,
-                                              backgroundColor: Colors.black,
+                                          SizedBox(
+                                            height: 40,
+                                            child: LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                final totalMs = controller.value.duration.inMilliseconds;
+                                                final currentMs = controller.value.position.inMilliseconds;
+                                                final baseProgress = totalMs > 0
+                                                    ? (currentMs / totalMs).clamp(0.0, 1.0)
+                                                    : 0.0;
+                                                final progress = isDraggingSeek ? dragPercent : baseProgress;
+
+                                                void seekToPercent(double percent) {
+                                                  percent = percent.clamp(0.0, 1.0);
+                                                  final targetMs = (totalMs * percent).toInt();
+                                                  controller.seekTo(Duration(milliseconds: targetMs));
+                                                }
+
+                                                return GestureDetector(
+                                                  behavior: HitTestBehavior.translucent,
+                                                  onTapDown: (details) {
+                                                    final localX = details.localPosition.dx;
+                                                    dragPercent = (localX / constraints.maxWidth).clamp(0.0, 1.0);
+                                                    isDraggingSeek = true;
+                                                    setState(() {});
+                                                    seekToPercent(dragPercent);
+                                                    isDraggingSeek = false;
+                                                  },
+                                                  onHorizontalDragStart: (_) {
+                                                    isDraggingSeek = true;
+                                                    setState(() {});
+                                                  },
+                                                  onHorizontalDragUpdate: (details) {
+                                                    dragPercent = ((details.localPosition.dx) / constraints.maxWidth)
+                                                        .clamp(0.0, 1.0);
+                                                    setState(() {});
+                                                  },
+                                                  onHorizontalDragEnd: (_) {
+                                                    seekToPercent(dragPercent);
+                                                    isDraggingSeek = false;
+                                                    setState(() {});
+                                                  },
+                                                  child: Stack(
+                                                    children: [
+                                                      // 背景トラック
+                                                      Align(
+                                                        alignment: Alignment.center,
+                                                        child: Container(
+                                                          height: 4,
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.white.withValues(alpha: 0.3),
+                                                            borderRadius: BorderRadius.circular(2),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      // 再生済みトラック
+                                                      Align(
+                                                        alignment: Alignment.centerLeft,
+                                                        child: Container(
+                                                          height: 4,
+                                                          width: constraints.maxWidth * progress,
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.white,
+                                                            borderRadius: BorderRadius.circular(2),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      // 白い丸いつまみ
+                                                      Positioned(
+                                                        left: (constraints.maxWidth * progress - 10)
+                                                            .clamp(0.0, constraints.maxWidth - 20),
+                                                        top: 10,
+                                                        child: Container(
+                                                          width: 20,
+                                                          height: 20,
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.white,
+                                                            shape: BoxShape.circle,
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color: Colors.black.withValues(alpha: 0.5),
+                                                                blurRadius: 4,
+                                                                offset: const Offset(0, 2),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           ),
                                           // 時間表示
@@ -336,7 +422,7 @@ class MediaViewerOverlay {
                           left: 0,
                           right: 0,
                           child: Container(
-                            color: Colors.grey.shade900.withValues(alpha: 0.7),
+                            color: Colors.grey.shade900.withValues(alpha: 0.3),
                             padding: EdgeInsets.only(
                               top: MediaQuery.of(context).padding.top + 15,
                               bottom: 15,
@@ -471,7 +557,7 @@ class MediaViewerOverlay {
                                     constraints: BoxConstraints(
                                       maxHeight: MediaQuery.of(context).size.height * 0.3,
                                     ),
-                                    color: Colors.grey.shade900.withValues(alpha: 0.7),
+                                    color: Colors.grey.shade900.withValues(alpha: 0.3),
                                     child: SingleChildScrollView(
                                       child: Container(
                                         padding: EdgeInsets.only(
