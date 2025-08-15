@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'talk_page.dart';
 import 'utils/database_helper.dart';
 import 'utils/file_utils.dart';
+import 'utils/progress_manager.dart';
 import 'dart:io';
 
 class HomePage extends StatefulWidget {
@@ -254,17 +255,74 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    // 進捗管理インスタンスを作成
+    final progressManager = ProgressManager();
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
+        return Dialog(
+          backgroundColor: Colors.white,
+          child: StreamBuilder<ProgressData>(
+            stream: progressManager.progressStream,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final progress = data?.progress ?? 0.0;
+              final message = data?.message ?? '準備中...';
+              final detail = data?.detail;
+              
+              return Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (detail != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        detail,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor: Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
       },
     );
 
     try {
-      // ZIPを解凍して処理
-      String? name = await fileManager.processZip(zipFilePath);
+      // ZIPを解凍して処理（進捗管理付き）
+      String? name = await fileManager.processZip(zipFilePath, progressManager: progressManager);
       if (name == null) return;
 
       String iconPath = "assets/images/icon.png";
@@ -286,6 +344,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } finally {
+      progressManager.dispose();
       if (context.mounted) {
         Navigator.pop(context); 
       }

@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import '../utils/database_helper.dart';
 import 'helper.dart';
+import 'progress_manager.dart';
 
 class FileManager {
   final DatabaseHelper dbHelper;
@@ -27,11 +28,22 @@ class FileManager {
     return null;
   }
 
-  /// ZIPを解凍してデータベースに保存する
-  Future<String?> processZip(String zipFilePath) async {
+  /// ZIPを解凍してデータベースに保存する（進捗報告付き）
+  Future<String?> processZip(String zipFilePath, {ProgressManager? progressManager}) async {
+    progressManager?.updateProgress(
+      progress: 0.1,
+      message: 'ZIPファイルを読み込んでいます...',
+    );
+    
     final directory = await getApplicationDocumentsDirectory(); // アプリのドキュメントディレクトリ
     // ZIPファイル名からトーク名を生成（例：sample.zip → sample）
     final talkName = p.basenameWithoutExtension(zipFilePath); // これがトーク名として使用される
+    
+    progressManager?.updateProgress(
+      progress: 0.2,
+      message: 'ZIPファイルを解析しています...',
+      detail: talkName,
+    );
     
     // InputFileStream を用いて ZIP をストリーム処理し、decodeStream で Archive を取得
     final inputStream = InputFileStream(zipFilePath);
@@ -51,11 +63,27 @@ class FileManager {
       actualFolderName = talkName;
     }
     
+    progressManager?.updateProgress(
+      progress: 0.3,
+      message: 'ファイルを展開しています...',
+      detail: '${archive.length}個のファイル',
+    );
+    
     // extractArchiveToDisk で Archive の内容を extractPath に直接展開
     await extractArchiveToDisk(archive, directory.path);
     
+    progressManager?.updateProgress(
+      progress: 0.5,
+      message: '展開が完了しました',
+    );
+    
     // 展開先ディレクトリ（実際のフォルダ名を使用）
     final extractPath = p.join(directory.path, actualFolderName);
+    
+    progressManager?.updateProgress(
+      progress: 0.6,
+      message: 'CSVファイルを検索しています...',
+    );
     
     // 展開先ディレクトリ内から CSV ファイルを検索
     final csvFiles = Directory(extractPath)
@@ -64,16 +92,24 @@ class FileManager {
         .toList();
 
     if (csvFiles.isNotEmpty) {
+      progressManager?.updateProgress(
+        progress: 0.7,
+        message: 'CSVファイルを処理しています...',
+      );
       return await _processWithCsvFromDisk(
-          extractPath, (csvFiles.first as File).path, talkName); // トーク名を渡す
+          extractPath, (csvFiles.first as File).path, talkName, progressManager: progressManager); // トーク名を渡す
     } else {
-      return await _processWithoutCsvFromDisk(extractPath, talkName); // トーク名を渡す
+      progressManager?.updateProgress(
+        progress: 0.7,
+        message: 'メディアファイルを処理しています...',
+      );
+      return await _processWithoutCsvFromDisk(extractPath, talkName, progressManager: progressManager); // トーク名を渡す
     }
   }
 
   /// CSV が存在する場合の処理（ディスク上のファイルを利用）
   Future<String?> _processWithCsvFromDisk(
-      String extractPath, String csvFilePath, String rootFolderName) async {
+      String extractPath, String csvFilePath, String rootFolderName, {ProgressManager? progressManager}) async {
     final mediaPath = p.join(extractPath, 'media'); // アプリのドキュメントディレクトリ/hoge岸piyoり/media
    
 
@@ -89,7 +125,19 @@ class FileManager {
     }
 
     // CSV の各行について、ファイルパスやサムネイルパスを更新
-    for (var row in fields) {
+    final totalRows = fields.length;
+    for (var i = 0; i < fields.length; i++) {
+      var row = fields[i];
+      
+      // 進捗を更新（70%から90%の範囲で更新）
+      if (progressManager != null && i % 10 == 0) {
+        final progress = 0.7 + (0.2 * (i / totalRows));
+        progressManager.updateProgress(
+          progress: progress,
+          message: 'メッセージを処理しています...',
+          detail: '${i + 1} / $totalRows',
+        );
+      }
       if (row.length > 4 &&
           row[4] is String &&
           (row[4] as String).isNotEmpty) {
@@ -182,13 +230,24 @@ class FileManager {
       }
     }
     
+    progressManager?.updateProgress(
+      progress: 0.95,
+      message: 'データベースに保存しています...',
+    );
+    
     await dbHelper.insertData(fields);
+    
+    progressManager?.updateProgress(
+      progress: 1.0,
+      message: '完了しました',
+    );
+    
     return rootFolderName; // トーク名を返す
   }
 
   /// CSV が存在しない場合の処理（ディスク上のファイルを利用）
   Future<String?> _processWithoutCsvFromDisk(
-      String extractPath, String rootFolderName) async {
+      String extractPath, String rootFolderName, {ProgressManager? progressManager}) async {
     List<List<dynamic>> extractedData = [];
     String? extractedName;
     final mediaPath = p.join(extractPath, 'media');
