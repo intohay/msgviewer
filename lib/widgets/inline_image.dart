@@ -54,6 +54,10 @@ class _InlineImageState extends State<InlineImage> {
       _showInfo = false;
     });
     
+    // スワイプ用の変数
+    double verticalDragOffset = 0;
+    double opacity = 1.0;
+    
     final overlayEntry = OverlayEntry(
       builder: (overlayContext) => StatefulBuilder(
         builder: (context, setState) {
@@ -63,6 +67,33 @@ class _InlineImageState extends State<InlineImage> {
           }
           
           return GestureDetector(
+            onVerticalDragUpdate: (details) {
+              setState(() {
+                verticalDragOffset += details.delta.dy;
+                // 下にスワイプした時のみ反応（上スワイプは無視）
+                if (verticalDragOffset > 0) {
+                  // スワイプ量に応じて透明度を調整
+                  opacity = (1.0 - (verticalDragOffset / 300)).clamp(0.0, 1.0);
+                } else {
+                  verticalDragOffset = 0;
+                  opacity = 1.0;
+                }
+              });
+            },
+            onVerticalDragEnd: (details) {
+              // 100ピクセル以上下にスワイプするか、速度が一定以上なら閉じる
+              if (verticalDragOffset > 100 || 
+                  (details.primaryVelocity != null && details.primaryVelocity! > 500)) {
+                _hideTimer?.cancel();
+                _overlayManager.closeOverlay();
+              } else {
+                // 閉じない場合は元に戻す
+                setState(() {
+                  verticalDragOffset = 0;
+                  opacity = 1.0;
+                });
+              }
+            },
             onTap: () {
               if (_showInfo) {
                 // 情報が表示されている場合は非表示にする
@@ -84,112 +115,123 @@ class _InlineImageState extends State<InlineImage> {
                 });
               }
             },
-            child: Container(
-              color: Colors.black,
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: InteractiveViewer(
-                      minScale: 1.0,  // 最小スケールを1.0に設定（元のサイズより小さくできない）
-                      maxScale: 3.0,  // 最大3倍まで拡大可能
-                      boundaryMargin: EdgeInsets.zero,  // 画像を画面外に移動できないようにする
-                      constrained: true,  // 画像を制約内に保つ
-                      child: Center(
-                        child: Image(
-                          image: image,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 上部の日時表示とナビゲーション
-                  if (_showInfo)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        color: Colors.grey.shade900.withOpacity(0.7),
-                        padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top + 15,
-                          bottom: 15,
-                          left: 20,
-                          right: 20,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // 中央に日時表示
-                            if (widget.time != null)
-                              Expanded(
-                                child: Text(
-                                  DateFormat('yyyy/MM/dd HH:mm').format(widget.time!),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    decoration: TextDecoration.none,
-                                    letterSpacing: 0.5,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            // 右側の×ボタン
-                            GestureDetector(
-                              onTap: () {
-                                _hideTimer?.cancel();
-                                _overlayManager.closeOverlay();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 30,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // 下部のメッセージ表示
-                  if (_showInfo && widget.message != null && widget.message!.isNotEmpty)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.3, // 画面の30%まで
-                        ),
-                        color: Colors.grey.shade900.withOpacity(0.7),
-                        child: SingleChildScrollView(
-                          child: Container(
-                            padding: EdgeInsets.only(
-                              bottom: MediaQuery.of(context).padding.bottom + 20,
-                              top: 20,
-                              left: 20,
-                              right: 20,
-                            ),
-                            child: Text(
-                              widget.message!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w400,
-                                decoration: TextDecoration.none,
-                                height: 1.5,
-                              ),
-                              textAlign: TextAlign.left,
+            child: Stack(
+              children: [
+                // 背景（透明度変化）
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  color: Colors.black.withOpacity(opacity),
+                ),
+                // 画像とオーバーレイ（一緒に動く）
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  transform: Matrix4.translationValues(0, verticalDragOffset, 0),
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned.fill(
+                        child: InteractiveViewer(
+                          minScale: 1.0,  // 最小スケールを1.0に設定（元のサイズより小さくできない）
+                          maxScale: 3.0,  // 最大3倍まで拡大可能
+                          boundaryMargin: EdgeInsets.zero,  // 画像を画面外に移動できないようにする
+                          constrained: true,  // 画像を制約内に保つ
+                          child: Center(
+                            child: Image(
+                              image: image,
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      // 上部の日時表示とナビゲーション
+                      if (_showInfo)
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: Colors.grey.shade900.withOpacity(0.7),
+                            padding: EdgeInsets.only(
+                              top: MediaQuery.of(context).padding.top + 15,
+                              bottom: 15,
+                              left: 20,
+                              right: 20,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // 中央に日時表示
+                                if (widget.time != null)
+                                  Expanded(
+                                    child: Text(
+                                      DateFormat('yyyy/MM/dd HH:mm').format(widget.time!),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.none,
+                                        letterSpacing: 0.5,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                // 右側の×ボタン
+                                GestureDetector(
+                                  onTap: () {
+                                    _hideTimer?.cancel();
+                                    _overlayManager.closeOverlay();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 30,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // 下部のメッセージ表示
+                      if (_showInfo && widget.message != null && widget.message!.isNotEmpty)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            width: double.infinity,
+                            constraints: BoxConstraints(
+                              maxHeight: MediaQuery.of(context).size.height * 0.3, // 画面の30%まで
+                            ),
+                            color: Colors.grey.shade900.withOpacity(0.7),
+                            child: SingleChildScrollView(
+                              child: Container(
+                                padding: EdgeInsets.only(
+                                  bottom: MediaQuery.of(context).padding.bottom + 20,
+                                  top: 20,
+                                  left: 20,
+                                  right: 20,
+                                ),
+                                child: Text(
+                                  widget.message!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                    decoration: TextDecoration.none,
+                                    height: 1.5,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -200,6 +242,7 @@ class _InlineImageState extends State<InlineImage> {
     _overlayManager.showOverlay(context, overlayEntry);
   }
 
+    
   @override
   Widget build(BuildContext context) {
     // 実際に表示するサムネイル（デフォルトは thumbnailPath、なければ imagePath）
