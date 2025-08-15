@@ -282,6 +282,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     thumbnailPath: thumbPath,
                     isSquare: true,
                     showPlayIcon: false,
+                    time: dateTime,
                   );
                 }
               },

@@ -42,7 +42,11 @@ class Message extends StatelessWidget {
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
       return InlineAudio(audioPath: mediaPath);
     } else if (mediaPath.endsWith('.mp4')) {
-      return InlineVideo(videoPath: mediaPath, thumbnailPath: thumbPath);
+      return InlineVideo(
+        videoPath: mediaPath, 
+        thumbnailPath: thumbPath,
+        time: time,
+      );
     } else {
       return const Text("Unsupported media type");
     }
