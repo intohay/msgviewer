@@ -85,26 +85,71 @@ class _InlineVideoState extends State<InlineVideo> {
 
   /// フルスクリーンの動画再生をオーバーレイで表示
   void _showOverlay(BuildContext context, Widget videoPlayer) {
+    // スワイプ用の変数
+    double verticalDragOffset = 0;
+    double opacity = 1.0;
+    
     final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned.fill(
-        child: Material(
-          color: Colors.black,
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(child: videoPlayer),
-              Positioned(
-                top: 40,
-                left: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.close, size: 30, color: Colors.white),
-                  onPressed: () {
-                    _overlayManager.closeOverlay();
-                  },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return GestureDetector(
+            onVerticalDragUpdate: (details) {
+              setState(() {
+                verticalDragOffset += details.delta.dy;
+                // 下にスワイプした時のみ反応（上スワイプは無視）
+                if (verticalDragOffset > 0) {
+                  // スワイプ量に応じて透明度を調整
+                  opacity = (1.0 - (verticalDragOffset / 300)).clamp(0.0, 1.0);
+                } else {
+                  verticalDragOffset = 0;
+                  opacity = 1.0;
+                }
+              });
+            },
+            onVerticalDragEnd: (details) {
+              // 100ピクセル以上下にスワイプするか、速度が一定以上なら閉じる
+              if (verticalDragOffset > 100 || 
+                  (details.primaryVelocity != null && details.primaryVelocity! > 500)) {
+                _overlayManager.closeOverlay();
+              } else {
+                // 閉じない場合は元に戻す
+                setState(() {
+                  verticalDragOffset = 0;
+                  opacity = 1.0;
+                });
+              }
+            },
+            child: Stack(
+              children: [
+                // 背景（透明度変化）
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  color: Colors.black.withOpacity(opacity),
                 ),
-              ),
-            ],
-          ),
-        ),
+                // 動画プレイヤーとUIコントロール（一緒に動く）
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  transform: Matrix4.translationValues(0, verticalDragOffset, 0),
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned.fill(child: videoPlayer),
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 10,
+                        right: 10,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, size: 30, color: Colors.white),
+                          onPressed: () {
+                            _overlayManager.closeOverlay();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
     // OverlayManagerを通じて表示
