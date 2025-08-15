@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -21,11 +22,13 @@ class TalkPage extends StatefulWidget {
   _TalkPageState createState() => _TalkPageState();
 }
 
-class _TalkPageState extends State<TalkPage> {
+class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   final dbHelper = DatabaseHelper();
 
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
+  
+  Timer? _saveTimer;
 
   /// 「List<Map<String, dynamic>> messages」が可変なリストになるように扱う
   List<Map<String, dynamic>> messages = [];
@@ -36,10 +39,14 @@ class _TalkPageState extends State<TalkPage> {
   /// 現在保持している中で最も古いメッセージID (IDが最小)
   /// reverse:true で id DESC 順に格納しているので、末尾が最古
   int? oldestIdSoFar;
+  
+  /// 現在保持している中で最も新しいメッセージID (IDが最大)
+  int? newestIdSoFar;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);  // ライフサイクル監視を追加
     _loadIcon();
     _loadCallMeName();
 
@@ -51,18 +58,33 @@ class _TalkPageState extends State<TalkPage> {
       oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
 
       iconPath = widget.savedState?["iconPath"] ?? "assets/images/icon.png";
+      print('TalkPage: Loaded with messages and scroll index ${widget.savedState?["scrollIndex"] ?? 0}');
     } else {
-      // 初回ロード: 最新n件のみ取得
-      _loadInitialMessages();
+      // スクロール位置のみ保存されている場合も考慮
+      final savedScrollIndex = widget.savedState?["scrollIndex"];
+      if (savedScrollIndex != null && savedScrollIndex > 0) {
+        print('TalkPage: Loading all messages and jumping to saved index $savedScrollIndex');
+        _loadAllMessagesAndJump(savedScrollIndex);
+      } else {
+        print('TalkPage: No saved state, loading initial messages');
+        _loadInitialMessages();
+      }
     }
 
     // 上にスクロールして古いメッセージを読み込むリスナー
     _itemPositionsListener.itemPositions.addListener(_scrollListener);
+    // スクロール位置の変更を監視
+    _itemPositionsListener.itemPositions.addListener(_onScrollPositionChanged);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _itemPositionsListener.itemPositions.removeListener(_scrollListener);
+    _itemPositionsListener.itemPositions.removeListener(_onScrollPositionChanged);
+    _saveTimer?.cancel();
+    // 破棄される前に最後の保存
+    _saveScrollPosition();
     super.dispose();
   }
 
@@ -93,8 +115,56 @@ class _TalkPageState extends State<TalkPage> {
       messages = newest; // id DESC (新しい順)
       if (messages.isNotEmpty) {
         oldestIdSoFar = messages.last['id'] as int; // 末尾が最古ID
+        newestIdSoFar = messages.first['id'] as int; // 先頭が最新ID
       }
       isLoading = false;
+    });
+    
+    // 保存されたスクロール位置があれば、初期ロード後にスクロール
+    final savedScrollIndex = widget.savedState?["scrollIndex"];
+    if (savedScrollIndex != null && savedScrollIndex > 0 && messages.isNotEmpty) {
+      final targetIndex = savedScrollIndex.clamp(0, messages.length - 1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_itemScrollController.isAttached) {
+          _itemScrollController.jumpTo(index: targetIndex);
+          print('TalkPage: Jumped to saved scroll index $targetIndex');
+        }
+      });
+    }
+  }
+
+  /// 全メッセージをロードして指定インデックスにジャンプ
+  Future<void> _loadAllMessagesAndJump(int savedIndex) async {
+    setState(() => isLoading = true);
+
+    // 全メッセージを取得
+    final db = await dbHelper.database;
+    final messagesRaw = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [widget.name],
+      orderBy: 'id DESC',
+    );
+    
+    final loadedMessages = messagesRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+
+    setState(() {
+      messages = loadedMessages;
+      if (messages.isNotEmpty) {
+        oldestIdSoFar = messages.last['id'] as int;
+        newestIdSoFar = messages.first['id'] as int;
+      }
+      isLoading = false;
+    });
+    
+    // 保存されたインデックスが有効な範囲内にあることを確認してジャンプ
+    final targetIndex = savedIndex.clamp(0, messages.isEmpty ? 0 : messages.length - 1);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_itemScrollController.isAttached && messages.isNotEmpty) {
+        _itemScrollController.jumpTo(index: targetIndex);
+        print('TalkPage: Jumped to saved index $targetIndex (out of ${messages.length} messages)');
+      }
     });
   }
 
@@ -118,6 +188,27 @@ class _TalkPageState extends State<TalkPage> {
     }
 
     setState(() => isLoading = false);
+  }
+
+  /// さらに新しいメッセージを読み込む (IDベース) 
+  Future<void> _loadNewerMessages() async {
+    if (isLoading) return;
+    if (newestIdSoFar == null) return;
+
+    setState(() => isLoading = true);
+
+    // 現在の最新IDより新しいメッセージを取得
+    final newerRaw = await dbHelper.getNewerMessages(widget.name, newestIdSoFar!, 20);
+    final newer = newerRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+
+    setState(() {
+      if (newer.isNotEmpty) {
+        // 新しいメッセージを先頭に追加
+        messages.insertAll(0, newer);
+        newestIdSoFar = newer.first['id'] as int;
+      }
+      isLoading = false;
+    });
   }
 
   /// 日付検索: 指定日付より古い投稿をすべてロード → そこへスクロール
@@ -174,21 +265,67 @@ class _TalkPageState extends State<TalkPage> {
     return closestIndex;
   }
 
-  /// 上にスクロールしたら古いメッセージを追加読み込み
+  /// スクロールしたらメッセージを追加読み込み
   void _scrollListener() {
     if (isLoading) return;
 
     final positions = _itemPositionsListener.itemPositions.value;
     if (positions.isEmpty) return;
 
-    // もっとも大きいindex (末尾)を取得
+    // もっとも小さいindex (先頭)と大きいindex (末尾)を取得
+    final minIndex = positions.map((p) => p.index).reduce((a, b) => a < b ? a : b);
     final maxIndex = positions.map((p) => p.index).reduce((a, b) => a > b ? a : b);
 
     // reverse:true なので index=0 が画面の最"上"(最新)、
     // index=(messages.length-1) が画面の最"下"(最古)
-    // → 末尾(最古)付近に来たら古いメッセージをロード
+    
+    // 先頭(最新)付近に来たら新しいメッセージをロード
+    if (minIndex <= 1 && newestIdSoFar != null) {
+      _loadNewerMessages();
+    }
+    
+    // 末尾(最古)付近に来たら古いメッセージをロード
     if (maxIndex >= messages.length - 2) {
       _loadOlderMessages();
+    }
+  }
+
+  // スクロール位置が変更された時の処理
+  void _onScrollPositionChanged() {
+    // 既存のタイマーをキャンセル
+    _saveTimer?.cancel();
+    
+    // 1秒後にスクロール位置を保存（デバウンス処理）
+    _saveTimer = Timer(const Duration(seconds: 1), () {
+      _saveScrollPosition();
+    });
+  }
+
+  // スクロール位置を保存
+  Future<void> _saveScrollPosition() async {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isNotEmpty && messages.isNotEmpty) {
+      // 画面上に表示されているアイテムのうち、もっとも先頭にある index を選ぶ
+      final scrollIndex = positions
+          .where((position) => position.itemLeadingEdge >= 0)
+          .map((position) => position.index)
+          .reduce((a, b) => a < b ? a : b);
+      
+      print('Auto-saving scroll position: index=$scrollIndex for ${widget.name}');
+      await dbHelper.setScrollIndex(widget.name ?? '', scrollIndex);
+    }
+  }
+
+  // アプリのライフサイクル変更時の処理
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // アプリがバックグラウンドに移行する時に保存
+    if (state == AppLifecycleState.paused || 
+        state == AppLifecycleState.detached) {
+      print('App going to background/detached - saving scroll position');
+      _saveScrollPosition();
     }
   }
 
@@ -212,7 +349,9 @@ class _TalkPageState extends State<TalkPage> {
         children: [
           ScrollablePositionedList.separated(
             reverse: true,
-            initialScrollIndex: widget.savedState?["scrollIndex"] ?? 0,
+            initialScrollIndex: messages.isNotEmpty 
+                ? (widget.savedState?["scrollIndex"] ?? 0).clamp(0, messages.length - 1)
+                : 0,
             itemScrollController: _itemScrollController,
             itemPositionsListener: _itemPositionsListener,
             itemCount: messages.length,
@@ -285,6 +424,7 @@ class _TalkPageState extends State<TalkPage> {
       'iconPath': iconPath,
       'scrollIndex': scrollIndex ?? 0,
     };
+    print('TalkPage: Returning with scroll index ${scrollIndex ?? 0}');
     Navigator.pop(context, stateToSave);
   }
 

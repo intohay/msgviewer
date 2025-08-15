@@ -17,7 +17,7 @@ class DatabaseHelper {
 
   initDb() async {
     String path = join(await getDatabasesPath(), 'app_data.db');
-    return await openDatabase(path, version: 3, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 4, onCreate: (Database db, int version) async {
       await db.execute('''
         CREATE TABLE Messages (
           id INTEGER PRIMARY KEY,
@@ -34,10 +34,12 @@ class DatabaseHelper {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT UNIQUE,
           icon_path TEXT,
-          call_me TEXT
+          call_me TEXT,
+          scroll_index INTEGER DEFAULT 0
         )
       ''');
     }, onUpgrade: (db, oldVersion, newVersion) async {
+      print('Database upgrade from version $oldVersion to $newVersion');
       if (oldVersion < 3) {
         await db.execute('''
           CREATE TABLE Talks (
@@ -47,6 +49,21 @@ class DatabaseHelper {
             call_me TEXT
           )
         ''');
+      }
+      if (oldVersion < 4) {
+        print('Upgrading to version 4: Adding scroll_index column');
+        // 既存のテーブルにscroll_indexカラムを追加
+        final tables = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='Talks'"
+        );
+        if (tables.isNotEmpty) {
+          final columns = await db.rawQuery('PRAGMA table_info(Talks)');
+          final hasScrollIndex = columns.any((col) => col['name'] == 'scroll_index');
+          if (!hasScrollIndex) {
+            await db.execute('ALTER TABLE Talks ADD COLUMN scroll_index INTEGER DEFAULT 0');
+            print('scroll_index column added successfully');
+          }
+        }
       }
     });
   }
@@ -238,6 +255,56 @@ class DatabaseHelper {
       return result.first['call_me'] as String?;
     }
     return null;
+  }
+
+  // スクロール位置を保存
+  Future<void> setScrollIndex(String name, int scrollIndex) async {
+    final db = await database;
+    print('Saving scroll index $scrollIndex for $name');
+    
+    // まず既存のレコードがあるか確認
+    final existing = await db.query(
+      'Talks',
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+
+    if (existing.isNotEmpty) {
+      // 既存データがあれば更新
+      await db.update(
+        'Talks',
+        {'scroll_index': scrollIndex},
+        where: 'name = ?',
+        whereArgs: [name],
+      );
+      print('Updated scroll index for $name');
+    } else {
+      // データがなければ挿入
+      await db.insert(
+        'Talks',
+        {'name': name, 'scroll_index': scrollIndex},
+      );
+      print('Inserted new talk with scroll index for $name');
+    }
+  }
+
+  // スクロール位置を取得
+  Future<int> getScrollIndex(String name) async {
+    final db = await database;
+    final result = await db.query(
+      'Talks',
+      where: 'name = ?',
+      whereArgs: [name],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      final scrollIndex = result.first['scroll_index'] as int? ?? 0;
+      print('Retrieved scroll index $scrollIndex for $name');
+      return scrollIndex;
+    }
+    print('No scroll index found for $name, returning 0');
+    return 0;
   }
 
   Future<void> updateFavoriteStatus(int messageId, bool isFavorite) async {

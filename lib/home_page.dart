@@ -26,14 +26,22 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadTalkPages() async {
     final talks = await dbHelper.getAllTalks();
+    final List<Map<String, dynamic>> talksWithScrollIndex = [];
+    
+    for (var talk in talks) {
+      final scrollIndex = await dbHelper.getScrollIndex(talk['name']);
+      print('HomePage: Loading scroll index $scrollIndex for ${talk['name']}');
+      talksWithScrollIndex.add({
+        'name': talk['name'],
+        'iconPath': talk['icon_path'] ?? 'assets/images/icon.png',
+        'savedState': {
+          'scrollIndex': scrollIndex,
+        },
+      });
+    }
+    
     setState(() {
-      talkPages = talks.map((talk) {
-        return {
-          'name': talk['name'],
-          'iconPath': talk['icon_path'] ?? 'assets/images/icon.png',
-          'savedState': <String, dynamic>{}, // 必要ならここでさらに保存状態を復元
-        };
-      }).toList();
+      talkPages = talksWithScrollIndex;
     });
   }
 
@@ -62,7 +70,7 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(
                     builder: (context) => TalkPage(
                       name: talk['name'],
-                      savedState: talk['savedState'] != null
+                      savedState: talk['savedState'] != null && (talk['savedState'] as Map).isNotEmpty
                           ? Map<String, dynamic>.from(talk['savedState'])
                           : null,
                     ),
@@ -70,6 +78,11 @@ class _HomePageState extends State<HomePage> {
                 );
                 if (result != null && result is Map<String, dynamic>) {
                   // await dbHelper.setIconPath(talk['name'], result['iconPath']);
+                  // スクロール位置をデータベースに保存
+                  if (result['scrollIndex'] != null) {
+                    print('HomePage: Saving scroll index ${result['scrollIndex']} for ${talk['name']}');
+                    await dbHelper.setScrollIndex(talk['name'], result['scrollIndex']);
+                  }
                   setState(() {
                     talkPages[index]['savedState'] = result; 
                     talkPages[index]['iconPath'] = result['iconPath'];
