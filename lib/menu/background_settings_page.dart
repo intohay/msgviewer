@@ -29,7 +29,7 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
     setState(() {
       _backgroundImagePath = prefs.getString('${widget.talkName}_background_image_path');
       _opacity = prefs.getDouble('${widget.talkName}_background_opacity') ?? 0.23;
-      final fitIndex = prefs.getInt('${widget.talkName}_background_fit') ?? 0;
+      final fitIndex = prefs.getInt('${widget.talkName}_background_fit') ?? BoxFit.values.indexOf(BoxFit.cover);
       _imageFit = BoxFit.values[fitIndex];
     });
   }
@@ -175,6 +175,7 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
                       children: [
                         _buildFitOption('カバー', BoxFit.cover),
                         _buildFitOption('フィット', BoxFit.contain),
+                        _buildFitOption('フィル', BoxFit.fill),
                         _buildFitOption('タイル', BoxFit.none),
                       ],
                     ),

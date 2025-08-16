@@ -35,7 +35,7 @@ class _BackgroundWrapperState extends State<BackgroundWrapper> {
     setState(() {
       _backgroundImagePath = prefs.getString('${widget.talkName}_background_image_path');
       _opacity = prefs.getDouble('${widget.talkName}_background_opacity') ?? 0.23;
-      final fitIndex = prefs.getInt('${widget.talkName}_background_fit') ?? 0;
+      final fitIndex = prefs.getInt('${widget.talkName}_background_fit') ?? BoxFit.values.indexOf(BoxFit.cover);
       _imageFit = BoxFit.values[fitIndex];
     });
   }

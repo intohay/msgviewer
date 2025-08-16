@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -556,6 +557,41 @@ class DatabaseHelper {
         whereArgs: [oldName],
       );
     });
+    
+    // SharedPreferencesの設定も移行
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 背景画像関連の設定を移行
+    final backgroundImagePath = prefs.getString('${oldName}_background_image_path');
+    final backgroundOpacity = prefs.getDouble('${oldName}_background_opacity');
+    final backgroundFit = prefs.getInt('${oldName}_background_fit');
+    
+    if (backgroundImagePath != null) {
+      await prefs.setString('${newName}_background_image_path', backgroundImagePath);
+      await prefs.remove('${oldName}_background_image_path');
+    }
+    if (backgroundOpacity != null) {
+      await prefs.setDouble('${newName}_background_opacity', backgroundOpacity);
+      await prefs.remove('${oldName}_background_opacity');
+    }
+    if (backgroundFit != null) {
+      await prefs.setInt('${newName}_background_fit', backgroundFit);
+      await prefs.remove('${oldName}_background_fit');
+    }
+    
+    // アイコンパスの設定を移行
+    final iconPath = prefs.getString('${oldName}_icon_path');
+    if (iconPath != null) {
+      await prefs.setString('${newName}_icon_path', iconPath);
+      await prefs.remove('${oldName}_icon_path');
+    }
+    
+    // Call Me名の設定を移行
+    final callMeName = prefs.getString('${oldName}_call_me');
+    if (callMeName != null) {
+      await prefs.setString('${newName}_call_me', callMeName);
+      await prefs.remove('${oldName}_call_me');
+    }
     
     print('トーク名を "$oldName" から "$newName" に更新しました。');
   }

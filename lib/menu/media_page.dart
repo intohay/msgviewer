@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -48,6 +49,11 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   bool _isPlaying = false;
   bool _isSeeking = false;
   double _sliderValue = 0;
+  
+  // StreamSubscriptions
+  StreamSubscription<Duration?>? _durationSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   double _volume = 1.0;
 
   @override
@@ -81,32 +87,39 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     });
 
     // ★ AudioPlayer のストリーム購読
-    _audioPlayer.durationStream.listen((d) {
-      setState(() {
-        _duration = d ?? Duration.zero;
-      });
+    _durationSubscription = _audioPlayer.durationStream.listen((d) {
+      if (mounted) {
+        setState(() {
+          _duration = d ?? Duration.zero;
+        });
+      }
     });
-    _audioPlayer.positionStream.listen((p) {
-      if (!_isSeeking) {
+    _positionSubscription = _audioPlayer.positionStream.listen((p) {
+      if (!_isSeeking && mounted) {
         setState(() {
           _position = p;
           _sliderValue = p.inMilliseconds.toDouble();
         });
       }
     });
-    _audioPlayer.playerStateStream.listen((state) {
-      setState(() {
-        _isPlaying = state.playing;
-        // 再生完了したらリセット
-        if (state.processingState == ProcessingState.completed) {
-          _resetAudioPlayer();
-        }
-      });
+    _playerStateSubscription = _audioPlayer.playerStateStream.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state.playing;
+          // 再生完了したらリセット
+          if (state.processingState == ProcessingState.completed) {
+            _resetAudioPlayer();
+          }
+        });
+      }
     });
   }
 
   @override
   void dispose() {
+    _durationSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _playerStateSubscription?.cancel();
     _tabController.dispose();
     _audioPlayer.dispose();
     super.dispose();
