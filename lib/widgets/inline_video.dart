@@ -156,8 +156,9 @@ class _InlineVideoState extends State<InlineVideo> {
       mediaList = [{
         'filepath': widget.videoPath,
         'thumb_filepath': widget.thumbnailPath,
-        'text': '',  // 動画単体の場合メッセージはなし
+        'text': widget.message,
         'date': widget.time?.toIso8601String(),
+        'video_duration': widget.videoDurationMs,
       }];
       initialIndex = 0;
     }
@@ -169,6 +170,10 @@ class _InlineVideoState extends State<InlineVideo> {
       overlayManager: _overlayManager,
       talkName: widget.talkName,
       callMeName: widget.callMeName,
+      onLoadMoreMedia: widget.allMedia != null ? (currentMedia) {
+        // 追加のメディアを読み込むロジックをここに実装
+        // 現時点では既存のリストを使用
+      } : null,
     );
   }
   String _formatDuration(Duration duration) {

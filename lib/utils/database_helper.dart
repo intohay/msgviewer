@@ -693,6 +693,51 @@ class DatabaseHelper {
     return null;
   }
 
+  // トーク内の全メッセージの日付範囲を取得
+  Future<Map<String, DateTime?>> getMessageDateRange(String name) async {
+    final db = await database;
+    
+    // 最古のメッセージ
+    final oldestResult = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [name],
+      orderBy: 'date ASC',
+      limit: 1,
+    );
+    
+    // 最新のメッセージ
+    final newestResult = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [name],
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    
+    DateTime? oldest;
+    DateTime? newest;
+    
+    if (oldestResult.isNotEmpty) {
+      final dateString = oldestResult.first['date'] as String?;
+      if (dateString != null) {
+        oldest = DateTime.parse(dateString);
+      }
+    }
+    
+    if (newestResult.isNotEmpty) {
+      final dateString = newestResult.first['date'] as String?;
+      if (dateString != null) {
+        newest = DateTime.parse(dateString);
+      }
+    }
+    
+    return {
+      'oldest': oldest,
+      'newest': newest,
+    };
+  }
+
   Future<void> updateVideoDuration(int id, int duration) async {
     final db = await database;
     await db.update(

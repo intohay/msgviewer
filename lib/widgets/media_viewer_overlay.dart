@@ -14,6 +14,7 @@ class MediaViewerOverlay {
     required OverlayManager overlayManager,
     String? talkName,  // トーク画面へのジャンプ用
     String? callMeName,  // ユーザーの呼ばれたい名前
+    Function(List<Map<String, dynamic>>)? onLoadMoreMedia,  // 追加メディアを読み込むコールバック
   }) {
     // スワイプ用の変数
     double verticalDragOffset = 0;
@@ -26,6 +27,12 @@ class MediaViewerOverlay {
       initialPage: initialIndex,
     );
     int currentPageIndex = initialIndex;
+    
+    // フルスクリーンで表示するメディアリスト（動的に更新される）
+    List<Map<String, dynamic>> displayedMedia = List.from(allMedia);
+    
+    // 最後にフルスクリーンで表示していたインデックスを記録
+    int lastViewedIndex = initialIndex;
     
     // 動画コントローラーのマップ（インデックスごとに管理）
     Map<int, VideoPlayerController> videoControllers = {};
@@ -92,6 +99,14 @@ class MediaViewerOverlay {
                 });
                 pageController.dispose();
                 overlayManager.closeOverlay();
+                
+                // 最後に表示していたメディアの位置を返す
+                if (talkName != null) {
+                  Navigator.of(context).pop({
+                    'lastViewedIndex': lastViewedIndex,
+                    'updatedMedia': displayedMedia,
+                  });
+                }
               } else {
                 // 閉じない場合は元に戻す
                 setState(() {
@@ -132,10 +147,11 @@ class MediaViewerOverlay {
                         child: PageView.builder(
                           controller: pageController,
                           physics: pageViewPhysics,  // 動的に変更可能なphysicsを使用
-                          itemCount: allMedia.length,
+                          itemCount: displayedMedia.length,
                           onPageChanged: (index) {
                             setState(() {
                               currentPageIndex = index;
+                              lastViewedIndex = index;
                               
                               // 動画の再生を制御
                               videoControllers.forEach((idx, controller) {
@@ -145,10 +161,17 @@ class MediaViewerOverlay {
                                   controller.pause();
                                 }
                               });
+                              
+                              // 最後のページに近づいたら追加のメディアを読み込む
+                              if (onLoadMoreMedia != null && index >= displayedMedia.length - 3) {
+                                onLoadMoreMedia(displayedMedia);
+                                // メディアが追加されたら再描画
+                                setState(() {});
+                              }
                             });
                           },
                           itemBuilder: (context, index) {
-                            final media = allMedia[index];
+                            final media = displayedMedia[index];
                             final mediaPath = media['filepath'] as String;
                             
                             // 画像か動画かを判定
@@ -464,8 +487,8 @@ class MediaViewerOverlay {
                                   GestureDetector(
                                     onTap: () {
                                       // 現在表示中のメディアの日付を取得
-                                      if (currentPageIndex < allMedia.length) {
-                                        final currentMedia = allMedia[currentPageIndex];
+                                      if (currentPageIndex < displayedMedia.length) {
+                                        final currentMedia = displayedMedia[currentPageIndex];
                                         final dateStr = currentMedia['date'] as String?;
                                         if (dateStr != null) {
                                           final dateTime = DateTime.tryParse(dateStr);
@@ -481,6 +504,8 @@ class MediaViewerOverlay {
                                             // トーク画面にジャンプ（結果を返して戻る）
                                             Navigator.of(context).pop({
                                               'jumpToDate': dateTime,
+                                              'lastViewedIndex': lastViewedIndex,
+                                              'updatedMedia': displayedMedia,
                                             });
                                           }
                                         }
@@ -503,9 +528,9 @@ class MediaViewerOverlay {
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (allMedia.length > 1)
+                                      if (displayedMedia.length > 1)
                                         Text(
-                                          '${currentPageIndex + 1} / ${allMedia.length}',
+                                          '${currentPageIndex + 1} / ${displayedMedia.length}',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
@@ -516,8 +541,8 @@ class MediaViewerOverlay {
                                       // 現在表示中のメディアの日付を表示
                                       Builder(
                                         builder: (context) {
-                                          if (currentPageIndex < allMedia.length) {
-                                            final currentMedia = allMedia[currentPageIndex];
+                                          if (currentPageIndex < displayedMedia.length) {
+                                            final currentMedia = displayedMedia[currentPageIndex];
                                             final dateStr = currentMedia['date'] as String?;
                                             if (dateStr != null) {
                                               final dateTime = DateTime.tryParse(dateStr);
@@ -551,6 +576,14 @@ class MediaViewerOverlay {
                                     });
                                     pageController.dispose();
                                     overlayManager.closeOverlay();
+                                    
+                                    // 最後に表示していたメディアの位置を返す
+                                    if (talkName != null) {
+                                      Navigator.of(context).pop({
+                                        'lastViewedIndex': lastViewedIndex,
+                                        'updatedMedia': displayedMedia,
+                                      });
+                                    }
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
@@ -574,8 +607,8 @@ class MediaViewerOverlay {
                           child: Builder(
                             builder: (context) {
                               // 現在表示中のメディアのメッセージを取得
-                              if (currentPageIndex < allMedia.length) {
-                                final currentMedia = allMedia[currentPageIndex];
+                              if (currentPageIndex < displayedMedia.length) {
+                                final currentMedia = displayedMedia[currentPageIndex];
                                 final rawMessage = currentMedia['text'] as String?;
                                 final currentMessage = rawMessage != null && callMeName != null
                                     ? replacePlaceHolders(rawMessage, callMeName)

@@ -774,7 +774,7 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     }
   }
 
-  void _showDateSearchCalendar() {
+  void _showDateSearchCalendar() async {
     // 現在画面に見えている投稿の中央値の日付を取得
     DateTime initialCalendarDate = DateTime.now();
     final positions = _itemPositionsListener.itemPositions.value;
@@ -785,14 +785,10 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       initialCalendarDate = DateTime.parse(messages[medianIndex]['date']);
     }
     
-    // トーク履歴の最小・最大日付を取得
-    DateTime? minDate;
-    DateTime? maxDate;
-    if (messages.isNotEmpty) {
-      // messagesは新しい順なので、最初が最新、最後が最古
-      maxDate = DateTime.parse(messages.first['date']);
-      minDate = DateTime.parse(messages.last['date']);
-    }
+    // データベースから全メッセージの日付範囲を取得
+    final dateRange = await dbHelper.getMessageDateRange(widget.name ?? '');
+    final minDate = dateRange['oldest'];
+    final maxDate = dateRange['newest'];
     
     showModalBottomSheet(
       isScrollControlled: true,
