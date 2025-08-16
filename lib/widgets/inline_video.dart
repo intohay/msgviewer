@@ -41,6 +41,10 @@ class InlineVideo extends StatefulWidget {
   
   /// フルスクリーンビューアを閉じたときの通知（最終表示メディア日時）
   final void Function(DateTime?)? onViewerClosed;
+  /// フルスクリーンビューアのページ変更時の通知（現在見ているメディアの日時）
+  final void Function(DateTime?)? onViewingChanged;
+  /// フルスクリーン中の追加ロードコールバック（TalkPage から受け取る）
+  final Future<int> Function(List<Map<String, dynamic>> displayedMedia, int currentIndex, bool towardsEnd)? onLoadMoreMedia;
 
   const InlineVideo({
     super.key,
@@ -56,6 +60,8 @@ class InlineVideo extends StatefulWidget {
     this.message,
     this.callMeName,
     this.onViewerClosed,
+    this.onViewingChanged,
+    this.onLoadMoreMedia,
   });
 
   @override
@@ -174,10 +180,7 @@ class _InlineVideoState extends State<InlineVideo> {
       overlayManager: _overlayManager,
       talkName: widget.talkName,
       callMeName: widget.callMeName,
-      onLoadMoreMedia: widget.allMedia != null ? (currentMedia) {
-        // 追加のメディアを読み込むロジックをここに実装
-        // 現時点では既存のリストを使用
-      } : null,
+      onLoadMoreMedia: widget.onLoadMoreMedia,
       onClose: (jumpToDate, lastViewedIndex, updatedMedia) {
         // トーク画面から開かれている場合は結果を返す
         if (widget.talkName != null) {
@@ -190,6 +193,11 @@ class _InlineVideoState extends State<InlineVideo> {
         // コールバック通知
         if (widget.onViewerClosed != null) {
           widget.onViewerClosed!(jumpToDate);
+        }
+      },
+      onViewedMediaChanged: (dt) {
+        if (widget.onViewingChanged != null) {
+          widget.onViewingChanged!(dt);
         }
       },
     );

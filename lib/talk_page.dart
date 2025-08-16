@@ -374,6 +374,39 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     return closestIndex;
   }
 
+  /// 指定日時付近のメッセージが未ロードの場合に、前後に追加ロードしておく
+  Future<void> _ensureMediaAroundDateLoaded(DateTime date) async {
+    // すでに messages が空なら全件から近傍に飛ぶ
+    if (messages.isEmpty) {
+      await _jumpToDate(date);
+      return;
+    }
+    // 範囲外なら拡張ロード
+    final oldestLoadedDate = DateTime.parse(messages.last['date']);
+    final newestLoadedDate = DateTime.parse(messages.first['date']);
+    if (date.isBefore(oldestLoadedDate) && oldestIdSoFar != null) {
+      // 末尾側（より古い）を追加ロード
+      final olderRaw = await dbHelper.getOlderMessagesById(widget.name, oldestIdSoFar!, 30);
+      if (olderRaw.isNotEmpty) {
+        final older = olderRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+        setState(() {
+          messages.addAll(older);
+          oldestIdSoFar = messages.last['id'] as int;
+        });
+      }
+    } else if (date.isAfter(newestLoadedDate) && newestIdSoFar != null) {
+      // 先頭側（より新しい）を追加ロード
+      final newerRaw = await dbHelper.getNewerMessages(widget.name, newestIdSoFar!, 30);
+      if (newerRaw.isNotEmpty) {
+        final newer = newerRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+        setState(() {
+          messages.insertAll(0, newer);
+          newestIdSoFar = newer.first['id'] as int;
+        });
+      }
+    }
+  }
+
   /// スクロールしたらメッセージを追加読み込み
   void _scrollListener() {
     if (isLoading) return;
@@ -525,6 +558,57 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                       // フルスクリーンから閉じた際、最後に見ていたメディアの日時へジャンプ
                       _jumpToDate(jumpToDate);
                     }
+                  },
+                  onViewingChanged: (dt) async {
+                    // フルスクリーン中にページが変わった時、背後のトークを追従スクロール
+                    if (dt != null) {
+                      await _ensureMediaAroundDateLoaded(dt);
+                      _jumpToDate(dt);
+                    }
+                  },
+                  onLoadMoreMedia: (displayedMedia, currentIndex, towardsEnd) async {
+                    // displayedMedia はメディアのみの昇順リスト（古い→新しい）。
+                    // towardsEnd=true: 末尾側(新しい)を追加, false: 先頭側(古い)を追加
+                    int addedToFront = 0;
+                    if (towardsEnd) {
+                      // 新しい側が不足していれば、messages 側の新しい投稿をロード
+                      if (newestIdSoFar != null) {
+                        final newerRaw = await dbHelper.getNewerMessages(widget.name, newestIdSoFar!, 30);
+                        if (newerRaw.isNotEmpty) {
+                          final newer = newerRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+                          setState(() {
+                            messages.insertAll(0, newer);
+                            newestIdSoFar = newer.first['id'] as int;
+                          });
+                          // displayedMedia 末尾にメディアを追加（昇順維持のため reverse）
+                          final newMedia = newer.where((msg) {
+                            final p = msg['filepath'] as String?;
+                            return p != null && p.isNotEmpty && (p.endsWith('.jpg') || p.endsWith('.png') || p.endsWith('.mp4'));
+                          }).toList().reversed.toList();
+                          displayedMedia.addAll(newMedia);
+                        }
+                      }
+                    } else {
+                      // 古い側が不足していれば、messages 側の古い投稿をロード
+                      if (oldestIdSoFar != null) {
+                        final olderRaw = await dbHelper.getOlderMessagesById(widget.name, oldestIdSoFar!, 30);
+                        if (olderRaw.isNotEmpty) {
+                          final older = olderRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+                          setState(() {
+                            messages.addAll(older);
+                            oldestIdSoFar = messages.last['id'] as int;
+                          });
+                          // displayedMedia 先頭にメディアを追加（昇順維持のため reverse）
+                          final newMedia = older.where((msg) {
+                            final p = msg['filepath'] as String?;
+                            return p != null && p.isNotEmpty && (p.endsWith('.jpg') || p.endsWith('.png') || p.endsWith('.mp4'));
+                          }).toList().reversed.toList();
+                          displayedMedia.insertAll(0, newMedia);
+                          addedToFront = newMedia.length;
+                        }
+                      }
+                    }
+                    return addedToFront;
                   },
                 ),
               );

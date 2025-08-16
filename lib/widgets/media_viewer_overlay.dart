@@ -14,8 +14,9 @@ class MediaViewerOverlay {
     required OverlayManager overlayManager,
     String? talkName,  // トーク画面へのジャンプ用
     String? callMeName,  // ユーザーの呼ばれたい名前
-    Function(List<Map<String, dynamic>>)? onLoadMoreMedia,  // 追加メディアを読み込むコールバック
+    Future<int> Function(List<Map<String, dynamic>> displayedMedia, int currentIndex, bool towardsEnd)? onLoadMoreMedia,  // 追加メディア読み込み（戻り値: 先頭に追加した件数）
     void Function(DateTime? jumpToDate, int lastViewedIndex, List<Map<String, dynamic>> displayedMedia)? onClose, // クローズ時通知
+    void Function(DateTime? viewingDate)? onViewedMediaChanged, // ページ変更時通知
   }) {
     // スワイプ用の変数
     double verticalDragOffset = 0;
@@ -158,7 +159,7 @@ class MediaViewerOverlay {
                           controller: pageController,
                           physics: pageViewPhysics,  // 動的に変更可能なphysicsを使用
                           itemCount: displayedMedia.length,
-                          onPageChanged: (index) {
+                          onPageChanged: (index) async {
                             setState(() {
                               currentPageIndex = index;
                               lastViewedIndex = index;
@@ -173,12 +174,34 @@ class MediaViewerOverlay {
                               });
                               
                               // 最後のページに近づいたら追加のメディアを読み込む
-                              if (onLoadMoreMedia != null && index >= displayedMedia.length - 3) {
-                                onLoadMoreMedia(displayedMedia);
-                                // メディアが追加されたら再描画
-                                setState(() {});
+                              if (onLoadMoreMedia != null) {
+                                // 非同期を待たずに投げる（スクロールをカクつかせないため）
+                                if (index >= displayedMedia.length - 3) {
+                                  onLoadMoreMedia(displayedMedia, index, true).then((_) {
+                                    setState(() {});
+                                  });
+                                } else if (index <= 2) {
+                                  onLoadMoreMedia(displayedMedia, index, false).then((addedToFront) {
+                                    if (addedToFront > 0 && pageController.hasClients) {
+                                      final newIndex = index + addedToFront;
+                                      pageController.jumpToPage(newIndex);
+                                      currentPageIndex = newIndex;
+                                      lastViewedIndex = newIndex;
+                                    }
+                                    setState(() {});
+                                  });
+                                }
                               }
                             });
+                            // 閲覧中のメディア日時を通知
+                            if (onViewedMediaChanged != null) {
+                              if (index < displayedMedia.length) {
+                                final current = displayedMedia[index];
+                                final dateStr = current['date'] as String?;
+                                final dt = dateStr != null ? DateTime.tryParse(dateStr) : null;
+                                onViewedMediaChanged(dt);
+                              }
+                            }
                           },
                           itemBuilder: (context, index) {
                             final media = displayedMedia[index];
