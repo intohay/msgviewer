@@ -880,6 +880,9 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     final minDate = dateRange['oldest'];
     final maxDate = dateRange['newest'];
     
+    // Check if widget is still mounted after async operation
+    if (!mounted) return;
+    
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
