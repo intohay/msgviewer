@@ -283,18 +283,66 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     
     final result = resultRaw.map((row) => Map<String, dynamic>.from(row)).toList();
 
+    // メッセージが見つからない場合、日付範囲外の処理
+    if (result.isEmpty) {
+      // 全メッセージを取得して、選択された日付が範囲外かどうか判定
+      final allMessagesRaw = await dbHelper.getAllMessagesForTalk(widget.name);
+      final allMessages = allMessagesRaw.map((row) => Map<String, dynamic>.from(row)).toList();
+      
+      if (allMessages.isEmpty) {
+        setState(() => isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("メッセージが存在しません")),
+          );
+        }
+        return;
+      }
+      
+      // 最新と最古の日付を取得（allMessagesは新しい順）
+      final newestDate = DateTime.parse(allMessages.first['date']);
+      
+      setState(() {
+        messages = allMessages;
+        oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
+        newestIdSoFar = messages.isNotEmpty ? messages.first['id'] as int : null;
+        isLoading = false;
+      });
+      
+      // 選択された日付が最新より新しい場合は最新へ、最古より古い場合は最古へジャンプ
+      int targetIndex;
+      if (date.isAfter(newestDate)) {
+        targetIndex = 0; // 最新のメッセージへ
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("最新のメッセージへ移動しました")),
+          );
+        }
+      } else {
+        targetIndex = messages.length - 1; // 最古のメッセージへ
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("最古のメッセージへ移動しました")),
+          );
+        }
+      }
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _itemScrollController.scrollTo(
+          index: targetIndex,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        );
+      });
+      return;
+    }
+
     setState(() {
       messages = result; // 表示を置き換え
       oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
       isLoading = false;
     });
-
-    if (messages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("該当するメッセージがありません")),
-      );
-      return;
-    }
 
     // 指定日付に最も近い投稿へスクロール
     final targetIndex = _findClosestIndex(date);
