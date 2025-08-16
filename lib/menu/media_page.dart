@@ -40,6 +40,11 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   // ★ TabController
   late TabController _tabController;
   int _currentTabIndex = 0;
+  
+  // ★ ScrollController for each tab
+  final ScrollController _imageScrollController = ScrollController();
+  final ScrollController _videoScrollController = ScrollController();
+  final ScrollController _audioScrollController = ScrollController();
 
   // ★ オーディオプレイヤー関連
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -123,6 +128,9 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     _playerStateSubscription?.cancel();
     _tabController.dispose();
     _audioPlayer.dispose();
+    _imageScrollController.dispose();
+    _videoScrollController.dispose();
+    _audioScrollController.dispose();
     super.dispose();
   }
 
@@ -289,8 +297,62 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                 _buildAudioList(audioList, "音声がありません"),
               ],
             ),
+      // ★ フローティングアクションボタン（最上部・最下部ジャンプ）
+      floatingActionButton: _buildFloatingButtons(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       // ★ 音声タブの時のみ表示するオーディオプレイヤー
       bottomNavigationBar: _currentTabIndex == 2 ? _buildAudioPlayerBar() : null,
+    );
+  }
+  
+  // ★ 最上部・最下部へのジャンプボタンを構築
+  Widget _buildFloatingButtons() {
+    // 各タブに応じたScrollControllerを取得
+    ScrollController? currentController;
+    if (_currentTabIndex == 0) {
+      currentController = _imageScrollController;
+    } else if (_currentTabIndex == 1) {
+      currentController = _videoScrollController;
+    } else if (_currentTabIndex == 2) {
+      currentController = _audioScrollController;
+    }
+    
+    // データが空の場合はボタンを表示しない
+    if ((_currentTabIndex == 0 && imageList.isEmpty) ||
+        (_currentTabIndex == 1 && videoList.isEmpty) ||
+        (_currentTabIndex == 2 && audioList.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // 最上部へジャンプボタン
+        FloatingActionButton.small(
+          heroTag: "toTop",
+          onPressed: () {
+            currentController?.animateTo(
+              0,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+            );
+          },
+          child: const Icon(Icons.arrow_upward),
+        ),
+        const SizedBox(height: 8),
+        // 最下部へジャンプボタン
+        FloatingActionButton.small(
+          heroTag: "toBottom",
+          onPressed: () {
+            currentController?.animateTo(
+              currentController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+            );
+          },
+          child: const Icon(Icons.arrow_downward),
+        ),
+      ],
     );
   }
 
@@ -307,6 +369,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     final sortedKeys = groupedData.keys.toList()..sort((a, b) => a.compareTo(b));
 
     return ListView.builder(
+      controller: isImage ? _imageScrollController : _videoScrollController,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       itemCount: sortedKeys.length,
       itemBuilder: (context, index) {
@@ -403,6 +466,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     final sortedKeys = groupedData.keys.toList()..sort((a, b) => a.compareTo(b));
 
     return ListView.builder(
+      controller: _audioScrollController,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       itemCount: sortedKeys.length,
       itemBuilder: (context, index) {
