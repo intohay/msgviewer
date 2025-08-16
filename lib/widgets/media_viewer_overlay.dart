@@ -288,7 +288,7 @@ class MediaViewerOverlay {
                                   // 下部のシークバーと時間表示（白い丸いつまみ付き）
                                   if (showInfo && controller.value.isInitialized)
                                     Positioned(
-                                      bottom: 60,
+                                      bottom: 20,  // さらに下げて20に変更
                                       left: 0,
                                       right: 0,
                                       child: Container(
