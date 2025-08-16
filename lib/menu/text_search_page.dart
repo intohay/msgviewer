@@ -116,52 +116,58 @@ class _TextSearchPageState extends State<TextSearchPage> {
                         widget.callMeName,
                       ).trim();
 
-                      return Stack(
-                        children: [
-                          Message(
-                            message: replacedText,
-                            senderName: row['name'],
-                            time: DateTime.parse(row['date']),
-                            avatarAssetPath: widget.iconPath,
-                            mediaPath: row['filepath'],
-                            thumbPath: row['thumb_filepath'],
-                            isFavorite: isFavorite,
-                            // ★ ここがポイント：検索キーワードを渡す
-                            highlightQuery: _searchController.text.trim(),
-                          ),
-                          // アイコンの下にジャンプボタンを配置
-                          Positioned(
-                            left: 16,  // アイコンの左端に揃える
-                            top: 65,  // アイコンの下に移動
-                            child: GestureDetector(
-                              onTap: () {
-                                // ボタンをタップしたら、その日時をTalkPageに渡して戻る
-                                Navigator.of(context).pop({
-                                  'jumpToDate': DateTime.parse(row['date']),
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.2),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.open_in_new,
-                                  color: Colors.white,
-                                  size: 16,
+                      return Container(
+                        // ジャンプボタンが隠れないように最小高さを確保
+                        constraints: const BoxConstraints(
+                          minHeight: 100, // アイコン(50) + ボタン位置(65) + ボタンサイズ(約28) を考慮
+                        ),
+                        child: Stack(
+                          children: [
+                            Message(
+                              message: replacedText,
+                              senderName: row['name'],
+                              time: DateTime.parse(row['date']),
+                              avatarAssetPath: widget.iconPath,
+                              mediaPath: row['filepath'],
+                              thumbPath: row['thumb_filepath'],
+                              isFavorite: isFavorite,
+                              // ★ ここがポイント：検索キーワードを渡す
+                              highlightQuery: _searchController.text.trim(),
+                            ),
+                            // アイコンの下にジャンプボタンを配置
+                            Positioned(
+                              left: 16,  // アイコンの左端に揃える
+                              top: 65,  // アイコンの下に移動
+                              child: GestureDetector(
+                                onTap: () {
+                                  // ボタンをタップしたら、その日時をTalkPageに渡して戻る
+                                  Navigator.of(context).pop({
+                                    'jumpToDate': DateTime.parse(row['date']),
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.2),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.open_in_new,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       );
                     },
                   ),
