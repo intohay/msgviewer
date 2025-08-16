@@ -120,8 +120,15 @@ class _HomePageState extends State<HomePage> {
                       await dbHelper.setScrollIndex(talk['name'], result['scrollIndex']);
                     }
                   }
+                  // データベースから最新のスクロール位置を取得
+                  final latestScrollIndex = await dbHelper.getScrollIndex(talk['name']);
                   setState(() {
-                    talkPages[index]['savedState'] = result; 
+                    // savedStateを更新（データベースのスクロール位置を使用）
+                    talkPages[index]['savedState'] = {
+                      'messages': result['messages'],
+                      'scrollIndex': latestScrollIndex,  // データベースから読み込んだ値を使用
+                      'iconPath': result['iconPath'],
+                    };
                     talkPages[index]['iconPath'] = result['iconPath'];
                   });
                 }

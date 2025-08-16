@@ -63,13 +63,14 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       final savedList = widget.savedState!["messages"] as List;
       final tempMessages = savedList.map((row) => Map<String, dynamic>.from(row)).toList();
       
-      // パス変換を適用
-      _convertMessagesPathsAsync(tempMessages);
-      
-      oldestIdSoFar = messages.isNotEmpty ? messages.last['id'] as int : null;
-
       iconPath = widget.savedState?["iconPath"] ?? "assets/images/icon.png";
-      print('TalkPage: Loaded with messages and scroll index ${widget.savedState?["scrollIndex"] ?? 0}');
+      
+      // スクロール位置を取得
+      final savedScrollIndex = widget.savedState?["scrollIndex"];
+      print('TalkPage: Loaded with messages and scroll index $savedScrollIndex');
+      
+      // パス変換を適用し、スクロール位置も渡す
+      _convertMessagesPathsAsync(tempMessages, scrollToIndex: savedScrollIndex);
     } else {
       // スクロール位置のみ保存されている場合も考慮
       final savedScrollIndex = widget.savedState?["scrollIndex"];
@@ -177,12 +178,27 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   }
 
   // savedStateのメッセージのパスを変換
-  Future<void> _convertMessagesPathsAsync(List<Map<String, dynamic>> tempMessages) async {
+  Future<void> _convertMessagesPathsAsync(List<Map<String, dynamic>> tempMessages, {int? scrollToIndex}) async {
     // パス変換を適用
     final convertedMessages = await dbHelper.convertPathsToAbsolute(tempMessages);
     setState(() {
       messages = convertedMessages;
+      if (messages.isNotEmpty) {
+        oldestIdSoFar = messages.last['id'] as int;
+        newestIdSoFar = messages.first['id'] as int;
+      }
     });
+    
+    // スクロール位置を復元
+    if (scrollToIndex != null && scrollToIndex > 0 && messages.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_itemScrollController.isAttached) {
+          final targetIndex = scrollToIndex.clamp(0, messages.length - 1);
+          _itemScrollController.jumpTo(index: targetIndex);
+          print('TalkPage: Jumped to saved scroll index $targetIndex after converting paths');
+        }
+      });
+    }
   }
 
   /// 全メッセージをロードして指定インデックスにジャンプ
