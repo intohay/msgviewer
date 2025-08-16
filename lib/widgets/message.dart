@@ -213,8 +213,8 @@ class Message extends StatelessWidget {
       spans.addAll(_buildHighlightedSpans(remainingText));
     }
 
-    return RichText(
-      text: TextSpan(
+    return SelectableText.rich(
+      TextSpan(
         style: const TextStyle(color: Colors.black),
         children: spans,
       ),
