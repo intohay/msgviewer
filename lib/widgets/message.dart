@@ -20,6 +20,7 @@ class Message extends StatelessWidget {
   // スワイプで切り替えるためのメディアリスト
   final List<Map<String, dynamic>>? allMedia;
   final int? currentMediaIndex;
+  final VoidCallback? onAvatarTap;
 
   const Message({
     Key? key,
@@ -34,6 +35,7 @@ class Message extends StatelessWidget {
     this.highlightQuery,
     this.allMedia,
     this.currentMediaIndex,
+    this.onAvatarTap,
   }) : super(key: key);
 
   /// メディアの種類を判定して対応ウィジェットを返す
@@ -80,11 +82,14 @@ class Message extends StatelessWidget {
         // アバター
         Padding(
           padding: const EdgeInsets.all(10.0),
-          child: CircleAvatar(
-            backgroundImage: avatarAssetPath.startsWith('assets/')
-                ? AssetImage(avatarAssetPath) as ImageProvider
-                : FileImage(File(avatarAssetPath)),
-            radius: 20,
+          child: GestureDetector(
+            onTap: onAvatarTap,
+            child: CircleAvatar(
+              backgroundImage: avatarAssetPath.startsWith('assets/')
+                  ? AssetImage(avatarAssetPath) as ImageProvider
+                  : FileImage(File(avatarAssetPath)),
+              radius: 20,
+            ),
           ),
         ),
         const SizedBox(width: 2),

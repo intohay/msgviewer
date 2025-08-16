@@ -518,6 +518,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                   isFavorite: isFavorite,
                   allMedia: currentMediaIndex != null ? allMediaMessages : null,
                   currentMediaIndex: currentMediaIndex,
+                  onAvatarTap: () => _showProfileDialog(),
                 ),
               );
             },
@@ -837,6 +838,105 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       leading: Icon(icon, color: Colors.blue),
       title: Text(text),
       onTap: onTap,
+    );
+  }
+  
+  Future<void> _showProfileDialog() async {
+    // 最古のメッセージの日付を取得
+    final oldestDate = await dbHelper.getOldestMessageDate(widget.name ?? '');
+    
+    if (oldestDate == null) {
+      return; // メッセージがない場合は何も表示しない
+    }
+    
+    // 現在の日付と最古の日付の差を計算
+    final now = DateTime.now();
+    final daysPassed = now.difference(oldestDate).inDays;
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              color: Colors.transparent,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {}, // カード内部のタップを無効化
+                  child: Container(
+                    width: 320,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 閉じるボタン
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, size: 24),
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // プロフィール画像
+                        CircleAvatar(
+                          radius: 80,
+                          backgroundImage: iconPath != null && iconPath!.isNotEmpty
+                              ? (iconPath!.startsWith('assets/')
+                                  ? AssetImage(iconPath!) as ImageProvider
+                                  : FileImage(File(iconPath!)))
+                              : const AssetImage("assets/images/icon.png"),
+                        ),
+                        const SizedBox(height: 24),
+                        // 名前
+                        Text(
+                          widget.name ?? '',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        // 購読日数
+                        Text(
+                          '$daysPassed日',
+                          style: const TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '購読してから経過しました！',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black54,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

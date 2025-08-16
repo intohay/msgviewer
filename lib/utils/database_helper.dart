@@ -672,6 +672,26 @@ class DatabaseHelper {
     return await convertPathsToAbsolute(messages);
   }
 
+  // 最古のメッセージの日付を取得
+  Future<DateTime?> getOldestMessageDate(String name) async {
+    final db = await database;
+    final result = await db.query(
+      'Messages',
+      where: 'name = ?',
+      whereArgs: [name],
+      orderBy: 'date ASC',
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      final dateString = result.first['date'] as String?;
+      if (dateString != null) {
+        return DateTime.parse(dateString);
+      }
+    }
+    return null;
+  }
+
   Future<void> updateVideoDuration(int id, int duration) async {
     final db = await database;
     await db.update(
