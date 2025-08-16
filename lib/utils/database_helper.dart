@@ -21,7 +21,7 @@ class DatabaseHelper {
   Future<String> getDocumentsPath() async {
     // キャッシュを使わず、毎回新しくパスを取得
     final docsPath = (await getApplicationDocumentsDirectory()).path;
-    debugPrint('Documents path: $docsPath');
+    // debugPrint('Documents path: $docsPath');
     return docsPath;
   }
 
@@ -75,7 +75,7 @@ class DatabaseHelper {
       // デバッグログ
       if (originalPath != null) {
         if (originalPath != convertedPath) {
-          debugPrint('Path conversion: $originalPath -> $convertedPath');
+          // debugPrint('Path conversion: $originalPath -> $convertedPath');
         } else if (!originalPath.startsWith('/')) {
           debugPrint('WARNING: Path not converted (still relative): $originalPath');
         }
