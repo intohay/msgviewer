@@ -909,7 +909,7 @@ class _CalendarBottomSheetState extends State<_CalendarBottomSheet> {
           ),
         ),
         // カレンダー本体
-        Expanded(
+        Flexible(
           child: TableCalendar(
             focusedDay: _focusedDay,
             firstDay: widget.minDate != null 
@@ -946,6 +946,7 @@ class _CalendarBottomSheetState extends State<_CalendarBottomSheet> {
               rightChevronVisible: false,
               titleTextFormatter: (date, locale) => '', // タイトルテキストを空にする
             ),
+            rowHeight: 50, // 行の高さを調整してオーバーフローを防ぐ
           ),
         ),
       ],
