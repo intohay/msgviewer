@@ -45,6 +45,10 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
   final ScrollController _imageScrollController = ScrollController();
   final ScrollController _videoScrollController = ScrollController();
   final ScrollController _audioScrollController = ScrollController();
+  
+  // ★ 年月セクションへのスクロール用キー（各タブ）
+  final Map<String, GlobalKey> _imageSectionKeys = {};
+  final Map<String, GlobalKey> _videoSectionKeys = {};
 
   // ★ オーディオプレイヤー関連
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -132,6 +136,27 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
     _videoScrollController.dispose();
     _audioScrollController.dispose();
     super.dispose();
+  }
+
+  //==================================================
+  // セクションキー取得/生成
+  //==================================================
+  GlobalKey _getSectionKey(String ymKey, {required bool isImage}) {
+    final map = isImage ? _imageSectionKeys : _videoSectionKeys;
+    return map.putIfAbsent(ymKey, () => GlobalKey());
+  }
+
+  void _scrollToYearMonth(DateTime dt, {required bool isImage}) {
+    final ymKey = "${dt.year}年${dt.month.toString().padLeft(2, '0')}月";
+    final key = (isImage ? _imageSectionKeys : _videoSectionKeys)[ymKey];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+        alignment: 0.1,
+      );
+    }
   }
 
   /// DBから画像・動画・音声をまとめて取得
@@ -377,6 +402,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
         final rows = groupedData[ymKey]!;
 
         return Column(
+          key: _getSectionKey(ymKey, isImage: isImage),
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 年月見出し
@@ -426,6 +452,16 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     currentIndex: imageList.indexWhere((item) => item['id'] == row['id']),
                     // メディア一覧から開く場合はtalkNameを渡さない（閉じる時にpopしないため）
                     callMeName: widget.callMeName,
+                    onViewingChanged: (dt) {
+                      if (dt != null) {
+                        _scrollToYearMonth(dt, isImage: true);
+                      }
+                    },
+                    onViewerClosed: (dt) {
+                      if (dt != null) {
+                        _scrollToYearMonth(dt, isImage: true);
+                      }
+                    },
                   );
                 } else {
                   // 動画
@@ -443,6 +479,16 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     // メディア一覧から開く場合はtalkNameを渡さない（閉じる時にpopしないため）
                     videoDurationMs: durationMs,
                     callMeName: widget.callMeName,
+                    onViewingChanged: (dt) {
+                      if (dt != null) {
+                        _scrollToYearMonth(dt, isImage: false);
+                      }
+                    },
+                    onViewerClosed: (dt) {
+                      if (dt != null) {
+                        _scrollToYearMonth(dt, isImage: false);
+                      }
+                    },
                   );
                 }
               },
