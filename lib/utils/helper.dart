@@ -1,5 +1,4 @@
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path/path.dart' as p;
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 
@@ -17,7 +16,7 @@ String formatDateTimeForDatabase(String inputDateTime) {
     parsedDateTime = DateTime.parse(
         "${inputDateTime.substring(0, 4)}-${inputDateTime.substring(4, 6)}-${inputDateTime.substring(6, 8)} "
         "${inputDateTime.substring(8, 10)}:${inputDateTime.substring(10, 12)}:${inputDateTime.substring(12, 14)}")
-        .add(Duration(hours: 9));
+        .add(const Duration(hours: 9));
   } else {
     throw FormatException("Invalid datetime format: $inputDateTime");
   }

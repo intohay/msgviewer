@@ -5,7 +5,7 @@ import 'package:just_audio/just_audio.dart';
 class InlineAudio extends StatefulWidget {
   final String audioPath;
 
-  const InlineAudio({Key? key, required this.audioPath}) : super(key: key);
+  const InlineAudio({super.key, required this.audioPath});
 
   @override
   State<InlineAudio> createState() => _InlineAudioState();
@@ -27,11 +27,11 @@ class _InlineAudioState extends State<InlineAudio> {
     final audioFile = File(widget.audioPath);
     if (audioFile.existsSync()) {
       _audioPlayer.setFilePath(widget.audioPath).catchError((error) {
-        print('InlineAudio: Error loading audio file: $error');
+        debugPrint('InlineAudio: Error loading audio file: $error');
         return null;
       });
     } else {
-      print('InlineAudio: Audio file not found at: ${widget.audioPath}');
+      debugPrint('InlineAudio: Audio file not found at: ${widget.audioPath}');
     }
 
     _audioPlayer.processingStateStream.listen((state) {
@@ -51,7 +51,7 @@ class _InlineAudioState extends State<InlineAudio> {
     // ファイルが存在するかチェック
     final audioFile = File(widget.audioPath);
     if (!audioFile.existsSync()) {
-      print('InlineAudio: Cannot play - file not found at: ${widget.audioPath}');
+      debugPrint('InlineAudio: Cannot play - file not found at: ${widget.audioPath}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('音声ファイルが見つかりません')),
       );
@@ -62,7 +62,7 @@ class _InlineAudioState extends State<InlineAudio> {
       _audioPlayer.pause();
     } else {
       _audioPlayer.play().catchError((error) {
-        print('InlineAudio: Error playing audio: $error');
+        debugPrint('InlineAudio: Error playing audio: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('音声の再生に失敗しました')),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:archive/archive_io.dart'; // Archive 4.0.4 用の archive_io.dart
@@ -59,9 +60,7 @@ class FileManager {
     }
     
     // 実際のフォルダ名がない場合はトーク名を使用
-    if (actualFolderName == null) {
-      actualFolderName = talkName;
-    }
+    actualFolderName ??= talkName;
     
     progressManager?.updateProgress(
       progress: 0.3,
@@ -176,7 +175,7 @@ class FileManager {
               row.add(duration.inMilliseconds); // video_duration（ミリ秒単位で保存）
               controller.dispose();
             } catch (e) {
-              print('Error getting video duration: $e');
+              debugPrint('Error getting video duration: $e');
               row.add(null); // エラー時はnullを追加
             }
             row.add(null); // audio_durationはnull
@@ -202,7 +201,7 @@ class FileManager {
               }
               audioPlayer.dispose();
             } catch (e) {
-              print('Error getting audio duration: $e');
+              debugPrint('Error getting audio duration: $e');
               row.add(null); // エラー時はnullを追加
             }
           } else {
@@ -276,7 +275,7 @@ class FileManager {
       final String date = match.group(3)!;
       final String extension = match.group(4)!;
 
-      if (extractedName == null) extractedName = rootFolderName;
+      extractedName ??= rootFolderName;
 
       groupedEntries.putIfAbsent(id, () => {
             "id": id,
@@ -297,7 +296,7 @@ class FileManager {
         groupedEntries[id]!["filepath"] = mediaFilePath;
 
         final thumbFileName =
-            p.basenameWithoutExtension(file.path) + "_thumb.$extension";
+            '${p.basenameWithoutExtension(file.path)}_thumb.$extension';
         final thumbFilePath = p.join(mediaPath, thumbFileName);
         try {
           await generateThumbnail(mediaFilePath, thumbFilePath);
@@ -312,7 +311,7 @@ class FileManager {
         groupedEntries[id]!["filepath"] = mediaFilePath;
 
         final thumbFileName =
-            p.basenameWithoutExtension(file.path) + "_thumb.jpg";
+            '${p.basenameWithoutExtension(file.path)}_thumb.jpg';
         final thumbFilePath = p.join(mediaPath, thumbFileName);
         try {
           await generateVideoThumbnail(mediaFilePath, thumbFilePath);
@@ -330,7 +329,7 @@ class FileManager {
           groupedEntries[id]!["video_duration"] = duration.inMilliseconds;
           controller.dispose();
         } catch (e) {
-          print('Error getting video duration: $e');
+          debugPrint('Error getting video duration: $e');
           groupedEntries[id]!["video_duration"] = null;
         }
       } else if (type == 3 && audioExtensions.contains(".$extension")) {
@@ -349,7 +348,7 @@ class FileManager {
           }
           audioPlayer.dispose();
         } catch (e) {
-          print('Error getting audio duration: $e');
+          debugPrint('Error getting audio duration: $e');
           groupedEntries[id]!["audio_duration"] = null;
         }
       }

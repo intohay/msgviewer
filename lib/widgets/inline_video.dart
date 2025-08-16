@@ -40,7 +40,7 @@ class InlineVideo extends StatefulWidget {
   final String? callMeName;
 
   const InlineVideo({
-    Key? key,
+    super.key,
     required this.videoPath,
     required this.thumbnailPath,
     this.isSquare = false,
@@ -52,7 +52,7 @@ class InlineVideo extends StatefulWidget {
     this.videoDurationMs,
     this.message,
     this.callMeName,
-  }) : super(key: key);
+  });
 
   @override
   State<InlineVideo> createState() => _InlineVideoState();
@@ -100,7 +100,7 @@ class _InlineVideoState extends State<InlineVideo> {
           }
         });
       } catch (e) {
-        print('InlineVideo: Error loading thumbnail: $e');
+        debugPrint('InlineVideo: Error loading thumbnail: $e');
         if (mounted) {
           setState(() {
             _thumbnailPath = null;
@@ -110,7 +110,7 @@ class _InlineVideoState extends State<InlineVideo> {
       }
     } else {
       // サムネイルがない場合
-      print('InlineVideo: Thumbnail not found at: ${widget.thumbnailPath}');
+      debugPrint('InlineVideo: Thumbnail not found at: ${widget.thumbnailPath}');
       if (mounted) {
         setState(() {
           _thumbnailPath = null;
@@ -138,7 +138,7 @@ class _InlineVideoState extends State<InlineVideo> {
         controller.dispose();
       }
     } catch (e) {
-      print('InlineVideo: Error loading video metadata: $e');
+      debugPrint('InlineVideo: Error loading video metadata: $e');
     }
   }
 
@@ -200,7 +200,7 @@ class _InlineVideoState extends State<InlineVideo> {
         File(_thumbnailPath!),
         fit: boxFit,
         errorBuilder: (context, error, stackTrace) {
-          print('InlineVideo: Error displaying thumbnail: $error');
+          debugPrint('InlineVideo: Error displaying thumbnail: $error');
           return Container(
             color: Colors.grey[800],
             child: const Center(
@@ -273,7 +273,7 @@ class _InlineVideoState extends State<InlineVideo> {
         final double maxWidth = constraints.maxWidth;
 
         return Center(
-          child: Container(
+          child: SizedBox(
             height: fixedHeight,
             width: calculatedWidth > maxWidth ? maxWidth : calculatedWidth,
             child: Stack(
@@ -290,7 +290,7 @@ class _InlineVideoState extends State<InlineVideo> {
         // ビデオファイルが存在するかチェック
         final videoFile = File(widget.videoPath);
         if (!videoFile.existsSync()) {
-          print('InlineVideo: Video file not found at: ${widget.videoPath}');
+          debugPrint('InlineVideo: Video file not found at: ${widget.videoPath}');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('動画ファイルが見つかりません')),
           );

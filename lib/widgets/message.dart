@@ -24,7 +24,7 @@ class Message extends StatelessWidget {
   final String? callMeName;
 
   const Message({
-    Key? key,
+    super.key,
     this.message,
     required this.senderName,
     required this.time,
@@ -38,7 +38,7 @@ class Message extends StatelessWidget {
     this.currentMediaIndex,
     this.onAvatarTap,
     this.callMeName,
-  }) : super(key: key);
+  });
 
   /// メディアの種類を判定して対応ウィジェットを返す
   Widget ifMedia(String mediaPath, String thumbPath) {

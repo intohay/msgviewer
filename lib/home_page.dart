@@ -7,7 +7,7 @@ import 'utils/progress_manager.dart';
 import 'dart:io';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key, required this.title}) : super(key: key);
+  const HomePage({super.key, required this.title});
   final String title;
 
   @override
@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
     
     for (var talk in talks) {
       final scrollIndex = await dbHelper.getScrollIndex(talk['name']);
-      print('HomePage: Loading scroll index $scrollIndex for ${talk['name']}');
+      debugPrint('HomePage: Loading scroll index $scrollIndex for ${talk['name']}');
       
       // アイコンパスの処理
       String iconPath = 'assets/images/icon.png';
@@ -116,7 +116,7 @@ class _HomePageState extends State<HomePage> {
                     // 通常の処理
                     // スクロール位置をデータベースに保存
                     if (result['scrollIndex'] != null) {
-                      print('HomePage: Saving scroll index ${result['scrollIndex']} for ${talk['name']}');
+                      debugPrint('HomePage: Saving scroll index ${result['scrollIndex']} for ${talk['name']}');
                       await dbHelper.setScrollIndex(talk['name'], result['scrollIndex']);
                     }
                   }
@@ -160,9 +160,10 @@ class _HomePageState extends State<HomePage> {
                 if (action == 'edit') {
                   // 名前編集ダイアログを表示
                   final TextEditingController nameController = TextEditingController(text: talk['name']);
+                  if (!context.mounted) return;
                   final newName = await showDialog<String>(
                     context: context,
-                    builder: (context) => AlertDialog(
+                    builder: (dialogContext) => AlertDialog(
                       title: const Text('トーク名を編集'),
                       content: TextField(
                         controller: nameController,
@@ -173,11 +174,11 @@ class _HomePageState extends State<HomePage> {
                       ),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context, null),
+                          onPressed: () => Navigator.pop(dialogContext, null),
                           child: const Text('キャンセル'),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.pop(context, nameController.text),
+                          onPressed: () => Navigator.pop(dialogContext, nameController.text),
                           child: const Text('保存'),
                         ),
                       ],
@@ -189,6 +190,7 @@ class _HomePageState extends State<HomePage> {
                       // データベースでトーク名を更新
                       await dbHelper.updateTalkName(talk['name'], newName);
                       // UIを更新
+                      if (!context.mounted) return;
                       setState(() {
                         talkPages[index]['name'] = newName;
                       });
@@ -196,6 +198,7 @@ class _HomePageState extends State<HomePage> {
                         SnackBar(content: Text('トーク名を「$newName」に変更しました')),
                       );
                     } catch (e) {
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('名前の変更中にエラーが発生しました: $e')),
                       );
@@ -203,18 +206,19 @@ class _HomePageState extends State<HomePage> {
                   }
                 } else if (action == 'delete') {
                   // 削除確認ダイアログを表示
+                  if (!context.mounted) return;
                   final confirm = await showDialog<bool>(
                     context: context,
-                    builder: (context) => AlertDialog(
+                    builder: (dialogContext) => AlertDialog(
                       title: const Text('トークの削除'),
                       content: const Text('本当にこのトークを削除しますか？\n(関連するファイルも削除されます)'),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context, false),
+                          onPressed: () => Navigator.pop(dialogContext, false),
                           child: const Text('キャンセル'),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.pop(context, true),
+                          onPressed: () => Navigator.pop(dialogContext, true),
                           child: const Text('削除'),
                         ),
                       ],
@@ -226,6 +230,7 @@ class _HomePageState extends State<HomePage> {
                       // データベース上のレコードおよび関連ファイルを削除する処理
                       await dbHelper.deleteTalk(talk['name']);
                       // ホーム画面から対象のトークを削除
+                      if (!context.mounted) return;
                       setState(() {
                         talkPages.removeAt(index);
                       });
@@ -233,6 +238,7 @@ class _HomePageState extends State<HomePage> {
                         const SnackBar(content: Text('トークが削除されました')),
                       );
                     } catch (e) {
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('削除中にエラーが発生しました: $e')),
                       );
@@ -290,6 +296,7 @@ class _HomePageState extends State<HomePage> {
     // 進捗管理インスタンスを作成
     final progressManager = ProgressManager();
     
+    if (!context.mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -331,7 +338,7 @@ class _HomePageState extends State<HomePage> {
                       value: progress,
                       minHeight: 8,
                       backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
+                      valueColor: const AlwaysStoppedAnimation<Color>(
                         Colors.blue,
                       ),
                     ),
@@ -369,7 +376,7 @@ class _HomePageState extends State<HomePage> {
         });
       });
     } catch (e) {
-      print("Error: $e");
+      debugPrint("Error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),

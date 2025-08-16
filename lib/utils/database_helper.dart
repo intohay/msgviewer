@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,7 +21,7 @@ class DatabaseHelper {
   Future<String> getDocumentsPath() async {
     // キャッシュを使わず、毎回新しくパスを取得
     final docsPath = (await getApplicationDocumentsDirectory()).path;
-    print('Documents path: $docsPath');
+    debugPrint('Documents path: $docsPath');
     return docsPath;
   }
 
@@ -52,7 +53,7 @@ class DatabaseHelper {
       if (parts.length > 1) {
         // Documents/以降の部分を取得
         final relativePartOnly = parts[1];
-        print('Converting old absolute path to new: $relativePath -> $docsPath/$relativePartOnly');
+        debugPrint('Converting old absolute path to new: $relativePath -> $docsPath/$relativePartOnly');
         return join(docsPath, relativePartOnly);
       }
       // それ以外の絶対パスはそのまま返す（エラーケース）
@@ -74,9 +75,9 @@ class DatabaseHelper {
       // デバッグログ
       if (originalPath != null) {
         if (originalPath != convertedPath) {
-          print('Path conversion: $originalPath -> $convertedPath');
+          debugPrint('Path conversion: $originalPath -> $convertedPath');
         } else if (!originalPath.startsWith('/')) {
-          print('WARNING: Path not converted (still relative): $originalPath');
+          debugPrint('WARNING: Path not converted (still relative): $originalPath');
         }
       }
       
@@ -113,7 +114,7 @@ class DatabaseHelper {
         )
       ''');
     }, onUpgrade: (db, oldVersion, newVersion) async {
-      print('Database upgrade from version $oldVersion to $newVersion');
+      debugPrint('Database upgrade from version $oldVersion to $newVersion');
       if (oldVersion < 3) {
         await db.execute('''
           CREATE TABLE Talks (
@@ -125,7 +126,7 @@ class DatabaseHelper {
         ''');
       }
       if (oldVersion < 4) {
-        print('Upgrading to version 4: Adding scroll_index column');
+        debugPrint('Upgrading to version 4: Adding scroll_index column');
         // 既存のテーブルにscroll_indexカラムを追加
         final tables = await db.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='Talks'"
@@ -135,37 +136,37 @@ class DatabaseHelper {
           final hasScrollIndex = columns.any((col) => col['name'] == 'scroll_index');
           if (!hasScrollIndex) {
             await db.execute('ALTER TABLE Talks ADD COLUMN scroll_index INTEGER DEFAULT 0');
-            print('scroll_index column added successfully');
+            debugPrint('scroll_index column added successfully');
           }
         }
       }
       if (oldVersion < 5) {
-        print('Upgrading to version 5: Converting absolute paths to relative paths');
+        debugPrint('Upgrading to version 5: Converting absolute paths to relative paths');
         // 既存のメッセージのパスを絶対パスから相対パスに変換
         await _migratePathsToRelative(db);
       }
       if (oldVersion < 6) {
-        print('Upgrading to version 6: Adding video_duration column');
+        debugPrint('Upgrading to version 6: Adding video_duration column');
         // 既存のテーブルにvideo_durationカラムを追加
         final columns = await db.rawQuery('PRAGMA table_info(Messages)');
         final hasVideoDuration = columns.any((col) => col['name'] == 'video_duration');
         if (!hasVideoDuration) {
           await db.execute('ALTER TABLE Messages ADD COLUMN video_duration INTEGER');
-          print('video_duration column added successfully');
+          debugPrint('video_duration column added successfully');
         }
       }
       if (oldVersion < 7) {
-        print('Upgrading to version 7: Adding audio_duration column');
+        debugPrint('Upgrading to version 7: Adding audio_duration column');
         // 既存のテーブルにaudio_durationカラムを追加
         final columns = await db.rawQuery('PRAGMA table_info(Messages)');
         final hasAudioDuration = columns.any((col) => col['name'] == 'audio_duration');
         if (!hasAudioDuration) {
           await db.execute('ALTER TABLE Messages ADD COLUMN audio_duration INTEGER');
-          print('audio_duration column added successfully');
+          debugPrint('audio_duration column added successfully');
         }
       }
       if (oldVersion < 8) {
-        print('Upgrading to version 8: Converting icon paths to relative paths');
+        debugPrint('Upgrading to version 8: Converting icon paths to relative paths');
         // アイコンパスを相対パスに変換
         await _migrateIconPathsToRelative(db);
       }
@@ -211,9 +212,9 @@ class DatabaseHelper {
         }
       }
       
-      print('Successfully migrated paths to relative format');
+      debugPrint('Successfully migrated paths to relative format');
     } catch (e) {
-      print('Error during path migration: $e');
+      debugPrint('Error during path migration: $e');
     }
   }
 
@@ -249,14 +250,14 @@ class DatabaseHelper {
               where: 'id = ?',
               whereArgs: [talk['id']],
             );
-            print('Migrated icon path for ${talk['name']}: $iconPath -> $newIconPath');
+            debugPrint('Migrated icon path for ${talk['name']}: $iconPath -> $newIconPath');
           }
         }
       }
       
-      print('Successfully migrated icon paths to relative format');
+      debugPrint('Successfully migrated icon paths to relative format');
     } catch (e) {
-      print('Error during icon path migration: $e');
+      debugPrint('Error during icon path migration: $e');
     }
   }
 
@@ -297,7 +298,7 @@ class DatabaseHelper {
       );
     }
 
-    print('Data inserted successfully');
+    debugPrint('Data inserted successfully');
   }
 
 
@@ -488,7 +489,7 @@ class DatabaseHelper {
   // スクロール位置を保存
   Future<void> setScrollIndex(String name, int scrollIndex) async {
     final db = await database;
-    print('Saving scroll index $scrollIndex for $name');
+    debugPrint('Saving scroll index $scrollIndex for $name');
     
     // まず既存のレコードがあるか確認
     final existing = await db.query(
@@ -505,14 +506,14 @@ class DatabaseHelper {
         where: 'name = ?',
         whereArgs: [name],
       );
-      print('Updated scroll index for $name');
+      debugPrint('Updated scroll index for $name');
     } else {
       // データがなければ挿入
       await db.insert(
         'Talks',
         {'name': name, 'scroll_index': scrollIndex},
       );
-      print('Inserted new talk with scroll index for $name');
+      debugPrint('Inserted new talk with scroll index for $name');
     }
   }
 
@@ -528,10 +529,10 @@ class DatabaseHelper {
 
     if (result.isNotEmpty) {
       final scrollIndex = result.first['scroll_index'] as int? ?? 0;
-      print('Retrieved scroll index $scrollIndex for $name');
+      debugPrint('Retrieved scroll index $scrollIndex for $name');
       return scrollIndex;
     }
-    print('No scroll index found for $name, returning 0');
+    debugPrint('No scroll index found for $name, returning 0');
     return 0;
   }
 
@@ -593,7 +594,7 @@ class DatabaseHelper {
       await prefs.remove('${oldName}_call_me');
     }
     
-    print('トーク名を "$oldName" から "$newName" に更新しました。');
+    debugPrint('トーク名を "$oldName" から "$newName" に更新しました。');
   }
 
   Future<void> updateFavoriteStatus(int messageId, bool isFavorite) async {
@@ -801,7 +802,7 @@ class DatabaseHelper {
           try {
             await file.delete();
           } catch (e) {
-            print('ファイル削除エラー: $e');
+            debugPrint('ファイル削除エラー: $e');
           }
         }
       }
@@ -813,7 +814,7 @@ class DatabaseHelper {
           try {
             await thumbFile.delete();
           } catch (e) {
-            print('サムネイル削除エラー: $e');
+            debugPrint('サムネイル削除エラー: $e');
           }
         }
       }
@@ -833,7 +834,7 @@ class DatabaseHelper {
       whereArgs: [talkName],
     );
     
-    print('トーク "$talkName" の削除が完了しました。');
+    debugPrint('トーク "$talkName" の削除が完了しました。');
   }
 
 

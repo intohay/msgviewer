@@ -12,13 +12,13 @@ class IconChangePage extends StatefulWidget {
   final String currentIconPath;
   final Function(String) onIconChanged;
 
-  const IconChangePage({Key? key, required this.talkName, required this.currentIconPath, required this.onIconChanged}) : super(key: key);
+  const IconChangePage({super.key, required this.talkName, required this.currentIconPath, required this.onIconChanged});
 
   @override
-  _IconChangePageState createState() => _IconChangePageState();
+  IconChangePageState createState() => IconChangePageState();
 }
 
-class _IconChangePageState extends State<IconChangePage> {
+class IconChangePageState extends State<IconChangePage> {
   String? iconPath;
 
   @override
@@ -38,7 +38,7 @@ class _IconChangePageState extends State<IconChangePage> {
     await localFile.parent.create(recursive: true);
     
     await File(originalPath).copy(localPath); // コピーして保存
-    print("Saved icon to relative path: $relativePath");
+    debugPrint("Saved icon to relative path: $relativePath");
     return relativePath; // 相対パスを返す
   }
 
@@ -60,7 +60,7 @@ class _IconChangePageState extends State<IconChangePage> {
         
         setState(() {
           iconPath = absolutePath;
-          print("iconPath: $iconPath");
+          debugPrint("iconPath: $iconPath");
         });
         widget.onIconChanged(absolutePath); // 絶対パスで通知
       }

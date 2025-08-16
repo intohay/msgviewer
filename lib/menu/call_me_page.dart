@@ -6,13 +6,13 @@ class CallMePage extends StatefulWidget {
   final String? currentCallMe;
   final Function(String) onCallMeChanged;
 
-  const CallMePage({Key? key, required this.name, this.currentCallMe, required this.onCallMeChanged}) : super(key: key);
+  const CallMePage({super.key, required this.name, this.currentCallMe, required this.onCallMeChanged});
 
   @override
-  _CallMePageState createState() => _CallMePageState();
+  CallMePageState createState() => CallMePageState();
 }
 
-class _CallMePageState extends State<CallMePage> {
+class CallMePageState extends State<CallMePage> {
   final TextEditingController _controller = TextEditingController();
   final dbHelper = DatabaseHelper();
 
@@ -27,6 +27,7 @@ class _CallMePageState extends State<CallMePage> {
     if (newCallMe.isNotEmpty) {
       await dbHelper.setCallMeName(widget.name, newCallMe);
       widget.onCallMeChanged(newCallMe);
+      if (!mounted) return;
       Navigator.pop(context);
     }
   }
@@ -42,7 +43,7 @@ class _CallMePageState extends State<CallMePage> {
           children: [
             TextField(
               controller: _controller,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: "呼ばれたい名前",
                 border: OutlineInputBorder(),
               ),

@@ -9,11 +9,13 @@ import 'package:csv/csv.dart';
 import '../utils/database_helper.dart';
 
 class FilePickerDialog extends StatefulWidget {
+  const FilePickerDialog({super.key});
+
   @override
-  _FilePickerDialogState createState() => _FilePickerDialogState();
+  FilePickerDialogState createState() => FilePickerDialogState();
 }
 
-class _FilePickerDialogState extends State<FilePickerDialog> {
+class FilePickerDialogState extends State<FilePickerDialog> {
   String? zipFilePath;
   final dbHelper = DatabaseHelper();
 
@@ -21,14 +23,14 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Talk Data'),
+        title: const Text('Add Talk Data'),
         leading: IconButton(
-          icon: Icon(Icons.cancel),
+          icon: const Icon(Icons.cancel),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.download),
+            icon: const Icon(Icons.download),
             onPressed: () => _processZip(context),
           ),
         ],
@@ -39,7 +41,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
           children: <Widget>[
             ElevatedButton(
               onPressed: () => _pickFile(context),
-              child: Text('Pick ZIP File'),
+              child: const Text('Pick ZIP File'),
             ),
             if (zipFilePath != null) Text('Selected ZIP File: $zipFilePath'),
           ],
@@ -61,7 +63,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
     } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No file selected.')),
+          const SnackBar(content: Text('No file selected.')),
         );
       }
     }
@@ -79,7 +81,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
     for (final file in archive) {
       final parts = file.name.split('/');
       if (parts.isNotEmpty) {
-        print(parts.first);
+        debugPrint(parts.first);
         rootFolderName = parts.first;
         break;
       }
@@ -88,14 +90,14 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
     if (rootFolderName == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid ZIP structure.')),
+          const SnackBar(content: Text('Invalid ZIP structure.')),
         );
       }
       return;
     }
 
     final extractPath = join(directory.path, rootFolderName);
-    print('Extracting to: $extractPath');
+    debugPrint('Extracting to: $extractPath');
     Directory(extractPath).createSync(recursive: true);
 
 
@@ -104,7 +106,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
     // ZIPファイルの中のCSVファイルを抽出
     for (final file in archive) {
       
-      final filePath = join(extractPath, file.name.replaceFirst(rootFolderName + '/', ''));
+      final filePath = join(extractPath, file.name.replaceFirst('$rootFolderName/', ''));
 
       if (file.isFile && !file.name.contains('__MACOSX')) {
         final data = file.content as List<int>;
@@ -116,7 +118,7 @@ class _FilePickerDialogState extends State<FilePickerDialog> {
       }
     }
 
-    print('CSV file: $csvFilePath');
+    debugPrint('CSV file: $csvFilePath');
 
     if (csvFilePath != null) {
       final input = File(csvFilePath).openRead();

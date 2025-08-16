@@ -9,17 +9,17 @@ class FavoritesPage extends StatefulWidget {
   final String callMeName;
 
   const FavoritesPage({
-    Key? key,
+    super.key,
     required this.name,
     required this.iconPath,
     required this.callMeName,
-  }) : super(key: key);
+  });
 
   @override
-  _FavoritesPageState createState() => _FavoritesPageState();
+  FavoritesPageState createState() => FavoritesPageState();
 }
 
-class _FavoritesPageState extends State<FavoritesPage> {
+class FavoritesPageState extends State<FavoritesPage> {
   final dbHelper = DatabaseHelper();
   final ScrollController _scrollController = ScrollController();
 

@@ -12,11 +12,11 @@ class TextSearchPage extends StatefulWidget {
   final String callMeName;   // 置換用の「呼ばれたい名前」
 
   const TextSearchPage({
-    Key? key,
+    super.key,
     required this.name,
     required this.iconPath,
     required this.callMeName,
-  }) : super(key: key);
+  });
 
   @override
   State<TextSearchPage> createState() => _TextSearchPageState();
@@ -147,7 +147,7 @@ class _TextSearchPageState extends State<TextSearchPage> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
                                     ),

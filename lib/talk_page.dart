@@ -20,13 +20,13 @@ class TalkPage extends StatefulWidget {
   final Map<String, dynamic>? savedState;
   final String? name;
 
-  const TalkPage({Key? key, required this.name, this.savedState}) : super(key: key);
+  const TalkPage({super.key, required this.name, this.savedState});
 
   @override
-  _TalkPageState createState() => _TalkPageState();
+  TalkPageState createState() => TalkPageState();
 }
 
-class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
+class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   final dbHelper = DatabaseHelper();
 
   final ItemScrollController _itemScrollController = ItemScrollController();
@@ -67,7 +67,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       
       // スクロール位置を取得
       final savedScrollIndex = widget.savedState?["scrollIndex"];
-      print('TalkPage: Loaded with messages and scroll index $savedScrollIndex');
+      debugPrint('TalkPage: Loaded with messages and scroll index $savedScrollIndex');
       
       // パス変換を適用し、スクロール位置も渡す
       _convertMessagesPathsAsync(tempMessages, scrollToIndex: savedScrollIndex);
@@ -75,10 +75,10 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       // スクロール位置のみ保存されている場合も考慮
       final savedScrollIndex = widget.savedState?["scrollIndex"];
       if (savedScrollIndex != null && savedScrollIndex > 0) {
-        print('TalkPage: Loading all messages and jumping to saved index $savedScrollIndex');
+        debugPrint('TalkPage: Loading all messages and jumping to saved index $savedScrollIndex');
         _loadAllMessagesAndJump(savedScrollIndex);
       } else {
-        print('TalkPage: No saved state, loading initial messages');
+        debugPrint('TalkPage: No saved state, loading initial messages');
         _loadInitialMessages();
       }
     }
@@ -109,7 +109,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
 
   Future<void> _loadIcon() async {
     final savedPath = await dbHelper.getIconPath(widget.name ?? '');
-    print('Loading icon for ${widget.name}: savedPath = $savedPath');
+    debugPrint('Loading icon for ${widget.name}: savedPath = $savedPath');
     
     if (savedPath != null && !savedPath.startsWith('assets/')) {
       // 相対パスを絶対パスに変換
@@ -119,28 +119,28 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       // 既に絶対パスの場合（古いデータ）
       if (savedPath.startsWith('/')) {
         absolutePath = savedPath;
-        print('Using absolute path: $absolutePath');
+        debugPrint('Using absolute path: $absolutePath');
       } else {
         // 相対パスの場合
         absolutePath = '${directory.path}/$savedPath';
-        print('Converted relative path to absolute: $absolutePath');
+        debugPrint('Converted relative path to absolute: $absolutePath');
       }
       
       // ファイルの存在確認
       final file = File(absolutePath);
       if (await file.exists()) {
-        print('Icon file exists, setting iconPath: $absolutePath');
+        debugPrint('Icon file exists, setting iconPath: $absolutePath');
         setState(() {
           iconPath = absolutePath;
         });
         return;
       } else {
-        print('Icon file not found: $absolutePath, using default');
+        debugPrint('Icon file not found: $absolutePath, using default');
       }
     }
     
     // デフォルトアイコンを使用
-    print('Using default icon for ${widget.name}');
+    debugPrint('Using default icon for ${widget.name}');
     setState(() {
       iconPath = "assets/images/icon.png";
     });
@@ -171,7 +171,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_itemScrollController.isAttached) {
           _itemScrollController.jumpTo(index: targetIndex);
-          print('TalkPage: Jumped to saved scroll index $targetIndex');
+          debugPrint('TalkPage: Jumped to saved scroll index $targetIndex');
         }
       });
     }
@@ -195,7 +195,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
         if (_itemScrollController.isAttached) {
           final targetIndex = scrollToIndex.clamp(0, messages.length - 1);
           _itemScrollController.jumpTo(index: targetIndex);
-          print('TalkPage: Jumped to saved scroll index $targetIndex after converting paths');
+          debugPrint('TalkPage: Jumped to saved scroll index $targetIndex after converting paths');
         }
       });
     }
@@ -224,7 +224,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_itemScrollController.isAttached && messages.isNotEmpty) {
         _itemScrollController.jumpTo(index: targetIndex);
-        print('TalkPage: Jumped to saved index $targetIndex (out of ${messages.length} messages)');
+        debugPrint('TalkPage: Jumped to saved index $targetIndex (out of ${messages.length} messages)');
       }
     });
   }
@@ -428,7 +428,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
           .map((position) => position.index)
           .reduce((a, b) => a < b ? a : b);
       
-      print('Auto-saving scroll position: index=$scrollIndex for ${widget.name}');
+      debugPrint('Auto-saving scroll position: index=$scrollIndex for ${widget.name}');
       await dbHelper.setScrollIndex(widget.name ?? '', scrollIndex);
     }
   }
@@ -441,7 +441,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
     // アプリがバックグラウンドに移行する時に保存
     if (state == AppLifecycleState.paused || 
         state == AppLifecycleState.detached) {
-      print('App going to background/detached - saving scroll position');
+      debugPrint('App going to background/detached - saving scroll position');
       _saveScrollPosition();
     }
   }
@@ -569,7 +569,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
       'iconPath': iconPath,
       'scrollIndex': scrollIndex ?? 0,
     };
-    print('TalkPage: Returning with scroll index ${scrollIndex ?? 0}');
+    debugPrint('TalkPage: Returning with scroll index ${scrollIndex ?? 0}');
     Navigator.pop(context, stateToSave);
   }
 
@@ -775,7 +775,6 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   }
 
   void _showDateSearchCalendar() {
-    final screenHeight = MediaQuery.of(context).size.height;
     // 現在画面に見えている投稿の中央値の日付を取得
     DateTime initialCalendarDate = DateTime.now();
     final positions = _itemPositionsListener.itemPositions.value;
@@ -921,9 +920,9 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        const Text(
                           '購読してから経過しました！',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             color: Colors.black54,
                           ),
@@ -949,12 +948,11 @@ class _CalendarBottomSheet extends StatefulWidget {
   final DateTime? maxDate; // 最大日付
 
   const _CalendarBottomSheet({
-    Key? key,
     required this.onDateSelected,
     this.initialDate,
     this.minDate,
     this.maxDate,
-  }) : super(key: key);
+  });
 
   @override
   State<_CalendarBottomSheet> createState() => _CalendarBottomSheetState();

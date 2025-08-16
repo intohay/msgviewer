@@ -16,11 +16,11 @@ class MediaPage extends StatefulWidget {
   final String callMeName;
 
   const MediaPage({
-    Key? key,
+    super.key,
     required this.name,
     required this.iconPath,
     required this.callMeName,
-  }) : super(key: key);
+  });
 
   @override
   State<MediaPage> createState() => _MediaPageState();
@@ -156,7 +156,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
             await dbHelper.updateVideoDuration(video['id'], duration.inMilliseconds);
             controller.dispose();
           } catch (e) {
-            print('Error calculating video duration: $e');
+            debugPrint('Error calculating video duration: $e');
           }
         }
       }
@@ -181,7 +181,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
             }
             player.dispose();
           } catch (e) {
-            print('Error calculating audio duration: $e');
+            debugPrint('Error calculating audio duration: $e');
           }
         }
       }
@@ -367,10 +367,6 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                 } else {
                   // 動画
                   final durationMs = row['video_duration'] as int?;
-                  Duration? duration;
-                  if (durationMs != null) {
-                    duration = Duration(milliseconds: durationMs);
-                  }
                   
                   return InlineVideo(
                     videoPath: filePath,
@@ -617,7 +613,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
         return formatted;
       }
     } catch (e) {
-      print('Error getting audio duration: $e');
+      debugPrint('Error getting audio duration: $e');
     }
     
     return "";
