@@ -28,6 +28,9 @@ class InlineImage extends StatefulWidget {
   
   /// ユーザーの呼ばれたい名前
   final String? callMeName;
+  
+  /// フルスクリーンビューアを閉じたときの通知（最終表示メディア日時）
+  final void Function(DateTime?)? onViewerClosed;
 
   const InlineImage({
     super.key,
@@ -40,6 +43,7 @@ class InlineImage extends StatefulWidget {
     this.currentIndex,
     this.talkName,
     this.callMeName,
+    this.onViewerClosed,
   });
 
   @override
@@ -80,6 +84,20 @@ class _InlineImageState extends State<InlineImage> {
       overlayManager: _overlayManager,
       talkName: widget.talkName,
       callMeName: widget.callMeName,
+      onClose: (jumpToDate, lastViewedIndex, updatedMedia) {
+        // トーク画面から開かれている場合は結果を返す
+        if (widget.talkName != null) {
+          Navigator.of(context).pop({
+            'jumpToDate': jumpToDate,
+            'lastViewedIndex': lastViewedIndex,
+            'updatedMedia': updatedMedia,
+          });
+        }
+        // コールバック通知
+        if (widget.onViewerClosed != null) {
+          widget.onViewerClosed!(jumpToDate);
+        }
+      },
     );
   }
     

@@ -15,6 +15,7 @@ class MediaViewerOverlay {
     String? talkName,  // トーク画面へのジャンプ用
     String? callMeName,  // ユーザーの呼ばれたい名前
     Function(List<Map<String, dynamic>>)? onLoadMoreMedia,  // 追加メディアを読み込むコールバック
+    void Function(DateTime? jumpToDate, int lastViewedIndex, List<Map<String, dynamic>> displayedMedia)? onClose, // クローズ時通知
   }) {
     // スワイプ用の変数
     double verticalDragOffset = 0;
@@ -101,10 +102,19 @@ class MediaViewerOverlay {
                 overlayManager.closeOverlay();
                 
                 // 最後に表示していたメディアの位置を返す
-                if (talkName != null) {
+                final media = (lastViewedIndex >= 0 && lastViewedIndex < displayedMedia.length)
+                    ? displayedMedia[lastViewedIndex]
+                    : null;
+                final dateStr = media != null ? media['date'] as String? : null;
+                final dateTime = dateStr != null ? DateTime.tryParse(dateStr) : null;
+                if (onClose != null) {
+                  onClose(dateTime, lastViewedIndex, displayedMedia);
+                } else if (talkName != null) {
+                  // 互換: onClose が無い場合は従来通り pop で返す
                   Navigator.of(context).pop({
                     'lastViewedIndex': lastViewedIndex,
                     'updatedMedia': displayedMedia,
+                    'jumpToDate': dateTime,
                   });
                 }
               } else {
@@ -501,12 +511,17 @@ class MediaViewerOverlay {
                                             pageController.dispose();
                                             overlayManager.closeOverlay();
                                             
-                                            // トーク画面にジャンプ（結果を返して戻る）
-                                            Navigator.of(context).pop({
-                                              'jumpToDate': dateTime,
-                                              'lastViewedIndex': lastViewedIndex,
-                                              'updatedMedia': displayedMedia,
-                                            });
+                                            // トーク画面にジャンプ（結果を通知）
+                                            if (onClose != null) {
+                                              onClose(dateTime, lastViewedIndex, displayedMedia);
+                                            } else {
+                                              // 互換: onClose が無い場合は従来通り pop で返す
+                                              Navigator.of(context).pop({
+                                                'jumpToDate': dateTime,
+                                                'lastViewedIndex': lastViewedIndex,
+                                                'updatedMedia': displayedMedia,
+                                              });
+                                            }
                                           }
                                         }
                                       }
@@ -578,10 +593,19 @@ class MediaViewerOverlay {
                                     overlayManager.closeOverlay();
                                     
                                     // 最後に表示していたメディアの位置を返す
-                                    if (talkName != null) {
+                                    final media = (lastViewedIndex >= 0 && lastViewedIndex < displayedMedia.length)
+                                        ? displayedMedia[lastViewedIndex]
+                                        : null;
+                                    final dateStr = media != null ? media['date'] as String? : null;
+                                    final dateTime = dateStr != null ? DateTime.tryParse(dateStr) : null;
+                                    if (onClose != null) {
+                                      onClose(dateTime, lastViewedIndex, displayedMedia);
+                                    } else if (talkName != null) {
+                                      // 互換: onClose が無い場合は従来通り pop で返す
                                       Navigator.of(context).pop({
                                         'lastViewedIndex': lastViewedIndex,
                                         'updatedMedia': displayedMedia,
+                                        'jumpToDate': dateTime,
                                       });
                                     }
                                   },

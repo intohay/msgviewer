@@ -38,6 +38,9 @@ class InlineVideo extends StatefulWidget {
   
   /// ユーザーの呼ばれたい名前
   final String? callMeName;
+  
+  /// フルスクリーンビューアを閉じたときの通知（最終表示メディア日時）
+  final void Function(DateTime?)? onViewerClosed;
 
   const InlineVideo({
     super.key,
@@ -52,6 +55,7 @@ class InlineVideo extends StatefulWidget {
     this.videoDurationMs,
     this.message,
     this.callMeName,
+    this.onViewerClosed,
   });
 
   @override
@@ -174,6 +178,20 @@ class _InlineVideoState extends State<InlineVideo> {
         // 追加のメディアを読み込むロジックをここに実装
         // 現時点では既存のリストを使用
       } : null,
+      onClose: (jumpToDate, lastViewedIndex, updatedMedia) {
+        // トーク画面から開かれている場合は結果を返す
+        if (widget.talkName != null) {
+          Navigator.of(context).pop({
+            'jumpToDate': jumpToDate,
+            'lastViewedIndex': lastViewedIndex,
+            'updatedMedia': updatedMedia,
+          });
+        }
+        // コールバック通知
+        if (widget.onViewerClosed != null) {
+          widget.onViewerClosed!(jumpToDate);
+        }
+      },
     );
   }
   String _formatDuration(Duration duration) {

@@ -520,6 +520,12 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                   currentMediaIndex: currentMediaIndex,
                   onAvatarTap: () => _showProfileDialog(),
                   callMeName: callMeName ?? "あなた",
+                  onViewerClosed: (jumpToDate) {
+                    if (jumpToDate != null) {
+                      // フルスクリーンから閉じた際、最後に見ていたメディアの日時へジャンプ
+                      _jumpToDate(jumpToDate);
+                    }
+                  },
                 ),
               );
             },
