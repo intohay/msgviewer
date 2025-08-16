@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import 'package:path/path.dart' as p;
 
 import '../utils/database_helper.dart';
+import '../utils/helper.dart';
 import '../widgets/inline_image.dart';
 import '../widgets/inline_video.dart';
 
@@ -344,33 +345,45 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                   dateTime = DateTime.tryParse(dateStr);
                 }
 
+                // Apply replacePlaceHolders to the message text
+                final processedMessage = message != null 
+                    ? replacePlaceHolders(message, widget.callMeName)
+                    : null;
+
                 if (isImage) {
                   // 画像
                   return InlineImage(
                     imagePath: filePath,
                     thumbnailPath: thumbPath.isNotEmpty ? thumbPath : filePath,
                     isSquare: true,
-                    message: message,
+                    message: processedMessage,
                     time: dateTime,
                     // 画像タブでは画像のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: imageList,
                     currentIndex: imageList.indexWhere((item) => item['id'] == row['id']),
                     talkName: widget.name,  // トーク画面へのジャンプ用
+                    callMeName: widget.callMeName,
                   );
                 } else {
                   // 動画
-                  final videoDuration = row['video_duration'] as int?;
+                  final durationMs = row['video_duration'] as int?;
+                  Duration? duration;
+                  if (durationMs != null) {
+                    duration = Duration(milliseconds: durationMs);
+                  }
+                  
                   return InlineVideo(
                     videoPath: filePath,
-                    thumbnailPath: thumbPath,
+                    thumbnailPath: thumbPath.isNotEmpty ? thumbPath : filePath,
                     isSquare: true,
-                    showPlayIcon: false,
+                    message: processedMessage,
                     time: dateTime,
-                    videoDurationMs: videoDuration,  // データベースから取得した動画時間を渡す
                     // 動画タブでは動画のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: videoList,
                     currentIndex: videoList.indexWhere((item) => item['id'] == row['id']),
                     talkName: widget.name,  // トーク画面へのジャンプ用
+                    videoDurationMs: durationMs,
+                    callMeName: widget.callMeName,
                   );
                 }
               },
@@ -379,6 +392,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
         );
       },
     );
+
   }
 
   //==================================================

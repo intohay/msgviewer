@@ -32,6 +32,12 @@ class InlineVideo extends StatefulWidget {
   
   /// 動画の長さ（ミリ秒）
   final int? videoDurationMs;
+  
+  /// メッセージテキスト（オーバーレイ表示用）
+  final String? message;
+  
+  /// ユーザーの呼ばれたい名前
+  final String? callMeName;
 
   const InlineVideo({
     Key? key,
@@ -44,6 +50,8 @@ class InlineVideo extends StatefulWidget {
     this.currentIndex,
     this.talkName,
     this.videoDurationMs,
+    this.message,
+    this.callMeName,
   }) : super(key: key);
 
   @override
@@ -160,6 +168,7 @@ class _InlineVideoState extends State<InlineVideo> {
       initialIndex: initialIndex,
       overlayManager: _overlayManager,
       talkName: widget.talkName,
+      callMeName: widget.callMeName,
     );
   }
   String _formatDuration(Duration duration) {

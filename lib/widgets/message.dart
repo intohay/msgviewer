@@ -21,6 +21,7 @@ class Message extends StatelessWidget {
   final List<Map<String, dynamic>>? allMedia;
   final int? currentMediaIndex;
   final VoidCallback? onAvatarTap;
+  final String? callMeName;
 
   const Message({
     Key? key,
@@ -36,6 +37,7 @@ class Message extends StatelessWidget {
     this.allMedia,
     this.currentMediaIndex,
     this.onAvatarTap,
+    this.callMeName,
   }) : super(key: key);
 
   /// メディアの種類を判定して対応ウィジェットを返す
@@ -48,6 +50,7 @@ class Message extends StatelessWidget {
         time: time,
         allMedia: allMedia,
         currentIndex: currentMediaIndex,
+        callMeName: callMeName,
       );
     } else if (mediaPath.endsWith('.m4a') ||
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
@@ -68,6 +71,7 @@ class Message extends StatelessWidget {
         videoDurationMs: videoDuration,
         allMedia: allMedia,
         currentIndex: currentMediaIndex,
+        callMeName: callMeName,
       );
     } else {
       return const Text("Unsupported media type");

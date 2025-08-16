@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:intl/intl.dart';
 import '../utils/overlay_manager.dart';
+import '../utils/helper.dart';
 
 class MediaViewerOverlay {
   static void show({
@@ -12,6 +13,7 @@ class MediaViewerOverlay {
     required int initialIndex,
     required OverlayManager overlayManager,
     String? talkName,  // トーク画面へのジャンプ用
+    String? callMeName,  // ユーザーの呼ばれたい名前
   }) {
     // スワイプ用の変数
     double verticalDragOffset = 0;
@@ -574,7 +576,10 @@ class MediaViewerOverlay {
                               // 現在表示中のメディアのメッセージを取得
                               if (currentPageIndex < allMedia.length) {
                                 final currentMedia = allMedia[currentPageIndex];
-                                final currentMessage = currentMedia['text'] as String?;
+                                final rawMessage = currentMedia['text'] as String?;
+                                final currentMessage = rawMessage != null && callMeName != null
+                                    ? replacePlaceHolders(rawMessage, callMeName)
+                                    : rawMessage;
                                 
                                 if (currentMessage != null && currentMessage.isNotEmpty) {
                                   return Container(

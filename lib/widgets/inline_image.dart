@@ -25,6 +25,9 @@ class InlineImage extends StatefulWidget {
   
   /// トーク名（トーク画面へのジャンプ用）
   final String? talkName;
+  
+  /// ユーザーの呼ばれたい名前
+  final String? callMeName;
 
   const InlineImage({
     super.key,
@@ -36,6 +39,7 @@ class InlineImage extends StatefulWidget {
     this.allMedia,
     this.currentIndex,
     this.talkName,
+    this.callMeName,
   });
 
   @override
@@ -75,6 +79,7 @@ class _InlineImageState extends State<InlineImage> {
       initialIndex: initialIndex,
       overlayManager: _overlayManager,
       talkName: widget.talkName,
+      callMeName: widget.callMeName,
     );
   }
     

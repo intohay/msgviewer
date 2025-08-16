@@ -114,6 +114,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
             isFavorite: isFavorite,
             allMedia: currentMediaIndex != null ? allMediaMessages : null,
             currentMediaIndex: currentMediaIndex,
+            callMeName: widget.callMeName,
           );
         },
       ),

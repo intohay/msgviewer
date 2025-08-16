@@ -519,6 +519,7 @@ class _TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                   allMedia: currentMediaIndex != null ? allMediaMessages : null,
                   currentMediaIndex: currentMediaIndex,
                   onAvatarTap: () => _showProfileDialog(),
+                  callMeName: callMeName ?? "あなた",
                 ),
               );
             },
