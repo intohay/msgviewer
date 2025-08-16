@@ -424,7 +424,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     // 画像タブでは画像のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: imageList,
                     currentIndex: imageList.indexWhere((item) => item['id'] == row['id']),
-                    talkName: widget.name,  // トーク画面へのジャンプ用
+                    // メディア一覧から開く場合はtalkNameを渡さない（閉じる時にpopしないため）
                     callMeName: widget.callMeName,
                   );
                 } else {
@@ -440,7 +440,7 @@ class _MediaPageState extends State<MediaPage> with SingleTickerProviderStateMix
                     // 動画タブでは動画のみのリストを渡す（メディア一覧は古い順なので逆順にしない）
                     allMedia: videoList,
                     currentIndex: videoList.indexWhere((item) => item['id'] == row['id']),
-                    talkName: widget.name,  // トーク画面へのジャンプ用
+                    // メディア一覧から開く場合はtalkNameを渡さない（閉じる時にpopしないため）
                     videoDurationMs: durationMs,
                     callMeName: widget.callMeName,
                   );
