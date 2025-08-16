@@ -49,6 +49,9 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
   
   /// 最下部にいるかどうかを管理する状態変数
   bool isAtBottom = true;
+  
+  // フルスクリーンを開いてからスワイプが行われたか（追従可否）
+  bool _isFollowingDuringViewer = false;
 
   @override
   void initState() {
@@ -553,15 +556,20 @@ class TalkPageState extends State<TalkPage> with WidgetsBindingObserver {
                   currentMediaIndex: currentMediaIndex,
                   onAvatarTap: () => _showProfileDialog(),
                   callMeName: callMeName ?? "あなた",
+                  onViewerOpened: () {
+                    // 初回は追従しない
+                    _isFollowingDuringViewer = false;
+                  },
                   onViewerClosed: (jumpToDate) {
-                    if (jumpToDate != null) {
-                      // フルスクリーンから閉じた際、最後に見ていたメディアの日時へジャンプ
+                    // 直前にスワイプしていない場合は stay（追従しない）
+                    if (jumpToDate != null && _isFollowingDuringViewer) {
                       _jumpToDate(jumpToDate);
                     }
                   },
                   onViewingChanged: (dt) async {
                     // フルスクリーン中にページが変わった時、背後のトークを追従スクロール
                     if (dt != null) {
+                      _isFollowingDuringViewer = true; // スワイプ開始を検知
                       await _ensureMediaAroundDateLoaded(dt);
                       _jumpToDate(dt);
                     }

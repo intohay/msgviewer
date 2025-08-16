@@ -35,6 +35,8 @@ class InlineImage extends StatefulWidget {
   final void Function(DateTime?)? onViewingChanged;
   /// フルスクリーン中の追加ロードコールバック（TalkPage から受け取る）
   final Future<int> Function(List<Map<String, dynamic>> displayedMedia, int currentIndex, bool towardsEnd)? onLoadMoreMedia;
+  /// フルスクリーンビューアを開いた直後に通知
+  final VoidCallback? onViewerOpened;
 
   const InlineImage({
     super.key,
@@ -50,6 +52,7 @@ class InlineImage extends StatefulWidget {
     this.onViewerClosed,
     this.onViewingChanged,
     this.onLoadMoreMedia,
+    this.onViewerOpened,
   });
 
   @override
@@ -65,6 +68,10 @@ class _InlineImageState extends State<InlineImage> {
   }
 
   void _showOverlay(BuildContext context) {
+    // 開いたことを通知
+    if (widget.onViewerOpened != null) {
+      widget.onViewerOpened!();
+    }
     // allMediaがない場合は現在の画像のみのリストを作成
     final List<Map<String, dynamic>> mediaList;
     final int initialIndex;

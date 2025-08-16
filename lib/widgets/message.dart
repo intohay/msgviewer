@@ -29,6 +29,8 @@ class Message extends StatelessWidget {
   final void Function(DateTime?)? onViewingChanged;
   /// フルスクリーン中に追加メディアを読み込むためのコールバック
   final Future<int> Function(List<Map<String, dynamic>> displayedMedia, int currentIndex, bool towardsEnd)? onLoadMoreMedia;
+  /// フルスクリーンを開いた直後の通知
+  final VoidCallback? onViewerOpened;
 
   const Message({
     super.key,
@@ -48,6 +50,7 @@ class Message extends StatelessWidget {
     this.onViewerClosed,
     this.onViewingChanged,
     this.onLoadMoreMedia,
+    this.onViewerOpened,
   });
 
   /// メディアの種類を判定して対応ウィジェットを返す
@@ -64,6 +67,7 @@ class Message extends StatelessWidget {
         onViewerClosed: onViewerClosed,
         onViewingChanged: onViewingChanged,
         onLoadMoreMedia: onLoadMoreMedia,
+        onViewerOpened: onViewerOpened,
       );
     } else if (mediaPath.endsWith('.m4a') ||
         (mediaPath.endsWith('.mp4') && mediaPath.contains('_3_'))) {
@@ -88,6 +92,7 @@ class Message extends StatelessWidget {
         onViewerClosed: onViewerClosed,
         onViewingChanged: onViewingChanged,
         onLoadMoreMedia: onLoadMoreMedia,
+        onViewerOpened: onViewerOpened,
       );
     } else {
       return const Text("Unsupported media type");
